@@ -1,0 +1,365 @@
+---
+import { directusAssetUrl, directusItemsUrl } from '../lib/directus';
+import { buildProductSlugMap, getProductTitle } from '../lib/products';
+import { slugifyLabel } from '../lib/slug';
+
+interface Category {
+	id?: number;
+	status?: string;
+	sort?: number;
+	titolo_categoria?: string;
+	descrizione_categoria?: string;
+}
+
+interface CategoryRelation {
+	Categorie_id?: Category | number | null;
+}
+
+interface Product {
+	id?: number;
+	status?: string;
+	sort?: number;
+	codice_prodotto?: string;
+	titolo?: string;
+	descrizione_breve?: string;
+	descrizione_estesa?: string;
+	foto_prodotto?: string;
+	Categoria?: CategoryRelation[];
+}
+
+interface Props {
+	titolo?: string;
+}
+
+const { titolo = '' } = Astro.props;
+
+async function fetchCategories(): Promise<Category[]> {
+	try {
+		const url = directusItemsUrl('Categorie');
+		url.searchParams.set('fields', 'id,titolo_categoria,descrizione_categoria,status,sort');
+		url.searchParams.set('filter[status][_eq]', 'published');
+		url.searchParams.set('sort', 'sort,titolo_categoria');
+		const response = await fetch(url);
+		if (!response.ok) return [];
+		const payload = await response.json();
+		return Array.isArray(payload?.data) ? (payload.data as Category[]) : [];
+	} catch (error) {
+		console.error('Errore caricando le categorie prodotti:', error);
+		return [];
+	}
+}
+
+async function fetchProducts(): Promise<Product[]> {
+	try {
+		const url = directusItemsUrl('Prodotti');
+		url.searchParams.set('fields', '*,Categoria.Categorie_id.id,Categoria.Categorie_id.titolo_categoria,Categoria.Categorie_id.status');
+		url.searchParams.set('filter[status][_eq]', 'published');
+		url.searchParams.set('sort', 'sort,codice_prodotto');
+		const response = await fetch(url);
+		if (!response.ok) return [];
+		const payload = await response.json();
+		return Array.isArray(payload?.data) ? (payload.data as Product[]) : [];
+	} catch (error) {
+		console.error('Errore caricando i prodotti:', error);
+		return [];
+	}
+}
+
+const categories = await fetchCategories();
+const products = await fetchProducts();
+const productSlugMap = buildProductSlugMap(products);
+const categorySlugMap = new Map<number, string>();
+
+for (const category of categories) {
+	if (typeof category?.id !== 'number') continue;
+	const baseSlug = slugifyLabel(category.titolo_categoria) || String(category.id);
+	categorySlugMap.set(category.id, baseSlug);
+}
+
+function resolveImageSrc(value: string | undefined) {
+	return directusAssetUrl(value, {
+		width: 760,
+		quality: 72,
+		format: 'webp',
+	});
+}
+
+function getProductCategories(product: Product) {
+	if (!Array.isArray(product?.Categoria)) return [];
+	return product.Categoria
+		.map((entry) => {
+			const category = entry?.Categorie_id && typeof entry.Categorie_id === 'object' ? entry.Categorie_id : null;
+			if (!category || typeof category.id !== 'number') return null;
+			return {
+				id: category.id,
+				titolo: category.titolo_categoria || '',
+				slug: categorySlugMap.get(category.id) || String(category.id),
+			};
+		})
+		.filter((entry): entry is { id: number; titolo: string; slug: string } => Boolean(entry));
+}
+
+function getProductImageMeta(title: string) {
+  return {
+    alt: `${title} - utensile CNC di precisione con soluzioni personalizzate`,
+    title: `${title} | riaffilatura, rigenerazione e produzione CNC`
+  };
+}
+---
+
+{products.length > 0 && (
+	<section class="products_block" data-aos="fade-up" data-aos-duration="1500">
+		<div class="products_block_inner">
+			<nav class="products_categories" aria-label="Categorie prodotti">
+				<a class="products_category_link" href="/prodotti" data-category="all">
+					Tutti i prodotti
+				</a>
+				{categories.map((category) => {
+					const slug = typeof category.id === 'number'
+						? categorySlugMap.get(category.id) || String(category.id)
+						: '';
+					return (
+						<a
+							class="products_category_link"
+							href={slug ? `/prodotti/categoria/${encodeURIComponent(slug)}` : '/prodotti'}
+							data-category={slug || undefined}
+						>
+							{category.titolo_categoria}
+						</a>
+					);
+				})}
+			</nav>
+
+			<div class="products_grid">
+				{products.map((product) => {
+					const title = getProductTitle(product) || 'Prodotto';
+					const slug = typeof product.id === 'number' ? productSlugMap.get(product.id) || '' : '';
+					const href = slug ? `/prodotti/${slug}` : '';
+					const imageSrc = resolveImageSrc(product.foto_prodotto);
+					const imageMeta = getProductImageMeta(title);
+					const categoriesForProduct = getProductCategories(product);
+					const categorySlugs = categoriesForProduct.map((entry) => entry.slug).join(',');
+					const Tag = href ? 'a' : 'div';
+
+					return (
+						<Tag class="products_card" href={href || undefined} data-categories={categorySlugs}>
+							{imageSrc && (
+								<div class="products_card_media">
+									<img src={imageSrc} alt={imageMeta.alt} title={imageMeta.title} loading="lazy" />
+								</div>
+							)}
+							<h3 class="products_card_title">{title}</h3>
+							{product.descrizione_breve && (
+								<p class="products_card_subtitle">{product.descrizione_breve}</p>
+							)}
+							{categoriesForProduct.length > 0 && (
+								<div class="products_card_tags">
+									{categoriesForProduct.map((entry) => (
+										<span class="products_card_tag">{entry.titolo}</span>
+									))}
+								</div>
+							)}
+						</Tag>
+					);
+				})}
+			</div>
+
+			<p class="products_empty">Nessun prodotto disponibile per questa categoria.</p>
+		</div>
+	</section>
+)}
+
+<script is:inline>
+	(() => {
+		const params = new URLSearchParams(window.location.search);
+		const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+		const pathMatch = normalizedPath.match(/^\/prodotti\/categoria\/([^/]+)$/);
+		const pathCategory = pathMatch?.[1] ? decodeURIComponent(pathMatch[1]).trim() : '';
+		const rawCategory = params.get('categoria');
+		const queryCategory = rawCategory && rawCategory.trim() ? rawCategory.trim() : '';
+		const category = pathCategory || queryCategory || 'all';
+		const links = Array.from(document.querySelectorAll('.products_category_link[data-category]'));
+		const available = new Set(links.map((link) => link.getAttribute('data-category')).filter(Boolean));
+		const resolvedCategory = category === 'all' || available.has(category) ? category : 'all';
+
+		links.forEach((link) => {
+			const linkCategory = link.getAttribute('data-category') || 'all';
+			link.classList.toggle('is-active', linkCategory === resolvedCategory);
+		});
+
+		const cards = Array.from(document.querySelectorAll('.products_card'));
+		let visibleCount = 0;
+		cards.forEach((card) => {
+			const value = card.getAttribute('data-categories') || '';
+			const categories = value.split(',').filter(Boolean);
+			const match = resolvedCategory === 'all' || categories.includes(resolvedCategory);
+			card.style.display = match ? '' : 'none';
+			if (match) visibleCount += 1;
+		});
+
+		const empty = document.querySelector('.products_empty');
+		if (empty instanceof HTMLElement) {
+			empty.style.display = visibleCount > 0 ? 'none' : 'block';
+		}
+	})();
+</script>
+
+<style>
+	.products_block {
+		padding: 0px 20px 50px;
+	}
+
+	.products_block_inner {
+		max-width: var(--max-width);
+		margin: 0 auto;
+	}
+
+	.products_block_title {
+		margin: 0 0 24px;
+		color: var(--nero);
+		font-size: clamp(28px, 4vw, 42px);
+	}
+
+	.products_categories {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		width: fit-content;
+		margin: auto;
+		margin-bottom: 50px;
+		background: #e4e4e4;
+		padding: 10px;
+		border-radius: 50px;
+		box-shadow: inset 3px -1px 13px #00000038;
+		border: 1px solid #fff;
+	}
+
+	.products_category_link {
+		padding: 10px 18px;
+		border-radius: 999px;
+		background: #c4c4c45e;
+		color: var(--nero);
+		font-size: 14px;
+		font-weight: 600;
+		letter-spacing: 0.4px;
+		text-decoration: none;
+		transition: all 200ms ease, color 200ms ease;
+		height: 50px;
+		display: flex;
+		align-items: center;
+		text-transform: uppercase;
+	}
+
+	.products_category_link.is-active,
+	.products_category_link:hover {
+		background: var(--blu);
+		color: var(--bianco);
+	}
+
+	.products_grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 24px;
+	}
+
+	.products_card {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 55px 40px;
+		background: var(--bianco);
+		border-radius: 18px;
+		color: var(--nero);
+		transition: transform 200ms ease, box-shadow 200ms ease;
+		min-height: 100%;
+		text-decoration: none;
+	}
+
+	a.products_card:hover {
+		transform: translateY(-4px);
+		box-shadow: 0 16px 30px rgba(0, 0, 0, 0.15);
+	}
+
+	.products_card_media {
+		overflow: hidden;
+		border-radius: 12px;
+		aspect-ratio: 4 / 3;
+		background: #fff;
+	}
+
+	.products_card_media img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.products_card_title {
+		margin: 4px 0 0;
+		font-size: 33px;
+		line-height: 1.1;
+		text-align: center;
+	}
+
+	.products_card_subtitle {
+		margin: 0;
+		font-size: 16px;
+		line-height: 1.45;
+		color: rgba(0, 0, 0, 0.75);
+		text-align: center;
+	}
+
+	.products_card_tags {
+		margin-top: auto;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		justify-content: center;
+	}
+
+	.products_card_tag {
+		padding: 6px 10px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.08);
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.4px;
+		text-transform: uppercase;
+	}
+
+	.products_empty {
+		margin: 26px 0 0;
+		color: var(--bianco);
+		font-size: 16px;
+		display: none;
+	}
+
+	@media (max-width: 1024px) {
+		.products_grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 640px) {
+		.products_categories {
+			width: 100%;
+			margin-bottom: 24px;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			overflow-y: hidden;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.products_category_link {
+			flex: 0 0 auto;
+			white-space: nowrap;
+		}
+
+		.products_grid {
+			grid-template-columns: 1fr;
+		}
+
+		.products_card {
+			padding: 40px 26px;
+		}
+	}
+</style>

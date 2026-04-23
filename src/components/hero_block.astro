@@ -1,0 +1,171 @@
+---
+import { directusAssetUrl } from '../lib/directus';
+
+interface Props {
+	item: string;
+	titolo?: string;
+	sottotitolo?: string;
+	paragrafo?: string;
+	href?: string;
+	label?: string;
+	immagine?: string;
+	inverti?: boolean;
+	background_color?: string;
+}
+
+const { 
+	item, 
+	titolo = '', 
+	sottotitolo = '', 
+	paragrafo = '', 
+	href = '', 
+	label = '', 
+	immagine = '',
+	inverti = false,
+	background_color = ''
+} = Astro.props;
+
+function resolveImageSrc(value: string) {
+	return directusAssetUrl(value, {
+		width: 1100,
+		height: 900,
+		quality: 74,
+		format: 'webp',
+	});
+}
+
+function getHeroImageMeta(title: string, subtitle: string) {
+  const topic = subtitle || title || 'Servizi utensili CNC';
+  return {
+    alt: `${topic} - riaffilatura, rigenerazione e produzione utensili CNC di precisione`,
+    title: `${topic} | lavorazioni CNC a 5 assi e controllo qualita`
+  };
+}
+---
+
+<div
+	data-aos="fade-up"
+     data-aos-duration="1500"
+	class={`hero_block${inverti ? ' hero_block_inverted' : ''}`}
+	style={background_color ? `background-color: ${background_color};` : undefined}
+>
+	{immagine && (
+		<div class="colonna colonna_immagine">
+			<img
+				class="hero_image"
+				data-aos="fade"
+				data-aos-duration="500"
+				src={resolveImageSrc(immagine)}
+				alt={getHeroImageMeta(titolo, sottotitolo).alt}
+				title={getHeroImageMeta(titolo, sottotitolo).title}
+				loading="eager"
+				fetchpriority="high"
+				decoding="async"
+			/>
+		</div>
+	)}
+	<div class="colonna colonna_testo">
+		{titolo && <div class="title">{titolo}</div>}
+		{sottotitolo && <h3>{sottotitolo}</h3>}
+		{paragrafo && <div class="hero_text" set:html={paragrafo} />}
+		{label && href && (
+			<a class="MainButton" href={href}>
+				{label}
+			</a>
+		)}
+	</div>
+</div>
+
+<style>
+	.hero_block {
+		color:#fff;
+		margin-bottom: 50px;
+		display: flex;
+		border-radius: 40px;
+		max-width: var(--max-width);
+		margin: auto;
+		margin-bottom:40px;
+	}
+	.colonna {
+		flex: 1;
+	}
+
+	.hero_block_inverted {
+		flex-direction: row-reverse;
+	}
+
+	.colonna_testo {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;	
+		background: #fff;
+		color: #000;
+		padding: 50px;
+		border-radius: 20px;
+	}
+
+	.colonna_immagine {
+		display: flex;
+		align-items: center;
+	}
+
+	.colonna_testo .title {
+		font-size: 42px;
+		font-family: var(--font-body);
+		line-height: 40px;
+		font-weight: bold;
+	}
+
+	.hero_text {
+		margin: 0 0 30px;
+		line-height: 24px;
+		font-size: 19px;
+	}
+	.hero_image {
+		max-width: calc(100% + 20px);
+		margin-left:-20px;
+		height: auto;
+		display: block;
+		object-fit: cover;
+		height: 90%;
+		object-position: center;
+		border-radius: 20px;
+		
+	}
+
+	@media (max-width: 900px) {
+		.hero_block,
+		.hero_block_inverted {
+			flex-direction: column;
+		}
+
+		.colonna_testo {
+			padding: 28px 22px;
+		}
+
+		.hero_image {
+			max-width: 100%;
+			margin-left: 0;
+			height: auto;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.colonna_testo .title {
+			font-size: 36px;
+			font-family: var(--font-body);
+			line-height: 36px;
+		}
+
+		.colonna.colonna_immagine,
+		.colonna.colonna_immagine .hero_image {
+			border-bottom-left-radius: 0;
+			border-bottom-right-radius: 0;
+		}
+
+		.colonna_testo {
+			border-top-left-radius: 0;
+			border-top-right-radius: 0;
+		}
+	}
+</style>

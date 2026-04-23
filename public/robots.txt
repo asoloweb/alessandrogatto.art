@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block non-public areas
+Disallow: /admin/
+Disallow: /mcp/
+
+# XML sitemap
+Sitemap: https://stevanin.it/sitemap.xml
