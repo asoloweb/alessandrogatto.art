@@ -1,0 +1,164 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { fetchPublishedPageBySlug } from '../../lib/pages';
+import { fetchEventi, eventoCoverUrl, formatEventoDateRange } from '../../lib/eventi';
+import { directusAssetUrl } from '../../lib/directus';
+import { getLocaleFromPath, localizedField } from '../../lib/i18n';
+
+const page = await fetchPublishedPageBySlug('eventi', 'events');
+const eventi = await fetchEventi();
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
+const isEnglish = locale === 'en';
+
+const pageTitle = localizedField(page as any, 'title', locale);
+const pageDescription = localizedField(page as any, 'description', locale);
+const showPageHeader = page && !(page as any).hide_page_header;
+const pageHeaderImage = page?.featured_image ? directusAssetUrl(page.featured_image, { width: 1920, quality: 80, format: 'webp' }) : '';
+---
+
+<BaseLayout title={pageTitle || 'Events'} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
+	{showPageHeader && (
+		<div class="page_header" style={pageHeaderImage ? `background-image: url('${pageHeaderImage}')` : undefined}>
+			<div class="page_header_inner">
+				<h1 data-aos="fade-up" data-aos-duration="1500">{pageTitle}</h1>
+				{pageDescription && <p data-aos="fade-up" data-aos-duration="1800">{pageDescription}</p>}
+			</div>
+		</div>
+	)}
+
+	<section class="eventi_section">
+		<div class="eventi_inner">
+			<div class="eventi_grid">
+				{eventi.map((e) => {
+					const titolo = isEnglish && e.titolo_evento_en ? e.titolo_evento_en : e.titolo_evento;
+					const descrizione = isEnglish && e.descrizione_en ? e.descrizione_en : e.descrizione;
+					const coverUrl = eventoCoverUrl(e.foto_copertina);
+					const dateStr = formatEventoDateRange(e.data_inizio, e.data_fine, locale);
+					
+					return (
+						<article class="evento_card">
+							{coverUrl && (
+								<div class="evento_media">
+									<img src={coverUrl} alt={titolo || ''} loading="lazy" />
+								</div>
+							)}
+							<div class="evento_content">
+								{dateStr && <time class="evento_date">{dateStr}</time>}
+								<h3 class="evento_titolo">{titolo}</h3>
+								{e.location && <p class="evento_location">{e.location}</p>}
+								{descrizione && <p class="evento_desc">{descrizione}</p>}
+								{e.link_esterno && (
+									<a href={e.link_esterno} target="_blank" rel="noopener noreferrer" class="evento_link">
+										{isEnglish ? 'View more' : 'Approfondisci'}
+									</a>
+								)}
+							</div>
+						</article>
+					);
+				})}
+			</div>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.eventi_section {
+		padding: 56px 20px 100px;
+	}
+
+	.eventi_inner {
+		max-width: var(--max-width);
+		margin: 0 auto;
+	}
+
+	.eventi_grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 32px;
+	}
+
+	.evento_card {
+		display: flex;
+		flex-direction: column;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		color: var(--bianco);
+		transition: all .32s ease-out;
+	}
+
+	.evento_card:hover {
+		border-color: #4e4e4e;
+	}
+
+	.evento_media {
+		overflow: hidden;
+		aspect-ratio: 16 / 9;
+		background: #0a0a0a;
+	}
+
+	.evento_media img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.evento_content {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 28px 32px 32px;
+		flex: 1;
+	}
+
+	.evento_date {
+		font-size: 13px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--theme--primary);
+	}
+
+	.evento_titolo {
+		margin: 0;
+		font-size: clamp(24px, 2.4vw, 36px);
+		line-height: 1.15;
+		font-weight: 500;
+	}
+
+	.evento_location {
+		margin: 0;
+		font-size: 14px;
+		color: var(--text-muted);
+	}
+
+	.evento_desc {
+		margin: 0;
+		font-size: 15px;
+		line-height: 1.55;
+		color: var(--text-muted);
+	}
+
+	.evento_link {
+		margin-top: auto;
+		align-self: flex-start;
+		font-weight: 600;
+		font-size: 12px;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+		text-decoration: none;
+		color: var(--bianco);
+		border-bottom: 1px solid transparent;
+		transition: border-color 200ms ease;
+		padding-top: 12px;
+	}
+
+	.evento_link:hover {
+		border-color: var(--bianco);
+	}
+
+	@media (max-width: 768px) {
+		.eventi_grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

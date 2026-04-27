@@ -1,0 +1,139 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { directusAssetUrl, directusFetch, directusItemsUrl } from '../../lib/directus';
+import { buildProductSlugMap, getProductTitle } from '../../lib/products';
+import { slugifyLabel } from '../../lib/slug';
+
+type Category = {
+	id?: number;
+	titolo_categoria?: string;
+	descrizione_categoria?: string;
+};
+
+type Opera = {
+	id?: number;
+	status?: string;
+	titolo?: string;
+	descrizione?: string;
+	foto_principale?: string;
+	anno?: number;
+	categoria?: Category | number | null;
+};
+
+function categoryFromOpera(opera: Opera) {
+	const raw = opera?.categoria;
+	if (!raw || typeof raw !== 'object') return null;
+	return raw as Category;
+}
+
+export async function getStaticPaths() {
+	const url = directusItemsUrl('portfolio_opere');
+	url.searchParams.set('fields', 'id,status,titolo,descrizione,foto_principale,anno,categoria.id,categoria.titolo_categoria,categoria.descrizione_categoria');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('limit', '-1');
+	const response = await directusFetch(url);
+	const payload = await response.json();
+	const opere = Array.isArray(payload?.data) ? (payload.data as Opera[]) : [];
+	const slugMap = buildProductSlugMap(opere as any);
+
+	return opere
+		.filter((opera) => typeof opera.id === 'number')
+		.map((opera) => ({
+			params: { slug: slugMap.get(opera.id!) || String(opera.id) },
+			props: { opera },
+		}));
+}
+
+const { opera } = Astro.props as { opera: Opera };
+const title = getProductTitle(opera as any) || 'Progetto';
+const description = opera?.descrizione || '';
+const category = categoryFromOpera(opera);
+const categorySlug = slugifyLabel(category?.titolo_categoria) || (category?.id ? String(category.id) : '');
+const backHref = categorySlug ? `/collezione/${categorySlug}` : '/portfolio';
+const imageSrc = directusAssetUrl(opera?.foto_principale, { width: 1600, height: 1200, fit: 'cover', format: 'webp', quality: 78 });
+
+let relatedWorks: Opera[] = [];
+if (typeof category?.id === 'number' && typeof opera?.id === 'number') {
+	const relatedUrl = directusItemsUrl('portfolio_opere');
+	relatedUrl.searchParams.set('fields', 'id,titolo,foto_principale,anno,categoria.id,categoria.titolo_categoria');
+	relatedUrl.searchParams.set('filter[status][_eq]', 'published');
+	relatedUrl.searchParams.set('filter[categoria][id][_eq]', String(category.id));
+	relatedUrl.searchParams.set('filter[id][_neq]', String(opera.id));
+	relatedUrl.searchParams.set('sort', 'sort,titolo');
+	relatedUrl.searchParams.set('limit', '6');
+	const relatedResponse = await directusFetch(relatedUrl);
+	if (relatedResponse.ok) {
+		const relatedPayload = await relatedResponse.json();
+		relatedWorks = Array.isArray(relatedPayload?.data) ? (relatedPayload.data as Opera[]) : [];
+	}
+}
+
+const allForSlug = [opera, ...relatedWorks].filter(Boolean) as Opera[];
+const relatedSlugMap = buildProductSlugMap(allForSlug as any);
+---
+
+<BaseLayout title={title} seoDescription={description.slice(0, 150)}>
+	<section class="project_detail">
+		<div class="project_detail_inner">
+			<a class="project_back" href={backHref}>Torna alla collezione</a>
+			<header class="project_header">
+				{category?.titolo_categoria && <p class="project_meta">{category.titolo_categoria}</p>}
+				<h1>{title}</h1>
+				{opera?.anno && <p class="project_year">{opera.anno}</p>}
+			</header>
+
+			{imageSrc && (
+				<div class="project_media">
+					<img src={imageSrc} alt={title} loading="eager" />
+				</div>
+			)}
+
+			{description && <div class="project_description" set:html={description} />}
+
+			{relatedWorks.length > 0 && (
+				<section class="project_related">
+					<h2>Altre opere della stessa collezione</h2>
+					<div class="project_related_grid">
+						{relatedWorks.map((work) => {
+							const workTitle = getProductTitle(work as any) || 'Opera';
+							const workSlug = typeof work.id === 'number' ? relatedSlugMap.get(work.id) || String(work.id) : '';
+							return (
+								<a class="project_related_card" href={`/progetto/${workSlug}`}>
+									{work.foto_principale && (
+										<img src={directusAssetUrl(work.foto_principale, { width: 800, height: 600, fit: 'cover', format: 'webp', quality: 74 })} alt={workTitle} loading="lazy" />
+									)}
+									<div>
+										<h3>{workTitle}</h3>
+										{work.anno && <p>{work.anno}</p>}
+									</div>
+								</a>
+							);
+						})}
+					</div>
+				</section>
+			)}
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.project_detail { padding: 165px 20px 70px; }
+	.project_detail_inner { max-width: var(--max-width); margin: 0 auto; }
+	.project_back { display: inline-flex; margin-bottom: 20px; color: var(--bianco); font-weight: 600; text-decoration: none; }
+	.project_header h1 { margin: 0; font-size: clamp(38px, 6vw, 78px); line-height: 1; color: var(--bianco); }
+	.project_meta { margin: 0 0 8px; color: var(--primary); text-transform: uppercase; letter-spacing: .8px; font-size: 13px; font-weight: 700; }
+	.project_year { margin: 10px 0 0; color: rgba(255, 255, 255, .82); font-weight: 700; }
+  .project_media { margin-top: 24px; border-radius: 18px; overflow: hidden; max-height: calc(100vh - 200px); }
+  .project_media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.project_description { margin-top: 24px; background: var(--bianco); color: var(--nero); border-radius: 18px; padding: 22px; line-height: 1.6; }
+	.project_related { margin-top: 30px; }
+	.project_related h2 { margin: 0 0 14px; color: var(--bianco); font-size: clamp(24px, 3vw, 34px); }
+	.project_related_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+	.project_related_card { background: var(--bianco); color: var(--nero); text-decoration: none; border-radius: 14px; overflow: hidden; }
+	.project_related_card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+	.project_related_card div { padding: 12px; }
+	.project_related_card h3 { margin: 0; font-size: 18px; line-height: 1.2; }
+	.project_related_card p { margin: 6px 0 0; font-weight: 700; }
+	@media (max-width: 900px) { .project_related_grid { grid-template-columns: 1fr 1fr; } }
+	@media (max-width: 640px) { .project_related_grid { grid-template-columns: 1fr; } }
+</style>

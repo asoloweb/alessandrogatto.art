@@ -1,10 +1,13 @@
 ---
-import { DIRECTUS_URL, directusItemsUrl } from '../lib/directus';
+import { DIRECTUS_URL, directusFetch, directusItemsUrl } from '../lib/directus';
+import { englishPathFromItalian, englishSlugFromItalian, getLocaleFromPath, localizedField, withLocalePath } from '../lib/i18n';
 
 interface MenuItem {
 	id?: number | string;
 	label?: string;
+	label_en?: string;
 	custom_href?: string;
+	custom_href_en?: string;
 	pages?: { pages_id?: PageItem | number | string }[] | PageItem[];
 }
 
@@ -18,29 +21,61 @@ interface Menu {
 interface PageItem {
 	id?: number;
 	slug?: string;
+	slug_en?: string;
 	title?: string;
+	title_en?: string;
 }
 
 interface Options {
 	logo_light?: string;
 	footer_text?: string;
+	footer_text_en?: string;
 }
 
 let logoLightSrc = import.meta.env.PUBLIC_LOGO_LIGHT || '/favicon.svg';
 let footerText = '';
-let iubendaPrivacyHref = '';
-const logoAlt = 'Stevanin - servizi CNC di riaffilatura, rigenerazione e produzione utensili';
-const logoTitle = 'Stevanin lavorazioni CNC di precisione';
+const currentLocale = getLocaleFromPath(Astro.url?.pathname ?? '/');
 const footerMenus = [
-	{ slug: 'menu-footer-1', items: [] as MenuItem[] },
-	{ slug: 'menu-footer-2', items: [] as MenuItem[] },
-	{ slug: 'menu-footer-3', items: [] as MenuItem[] },
+	{ slug: 'footer-azienda', items: [] as MenuItem[] },
+	{ slug: 'footer-servizi', items: [] as MenuItem[] },
+	{ slug: 'footer-info', items: [] as MenuItem[] },
+	{ slug: 'footer-contatti', items: [] as MenuItem[] },
 ];
+const fallbackFooterMenus: Record<string, MenuItem[]> = {
+	'footer-azienda': [
+		{ label: 'Chi sono / Filosofia', label_en: 'About / Philosophy', custom_href: '/chi-sono-filosofia', custom_href_en: '/about-philosophy' },
+		{
+			label: 'Riconoscimenti',
+			label_en: 'Awards',
+			custom_href: '/riconoscimenti',
+			custom_href_en: '/awards',
+		},
+	],
+	'footer-servizi': [
+		{ label: 'Portfolio', label_en: 'Portfolio', custom_href: '/portfolio', custom_href_en: '/portfolio' },
+		{ label: 'Collezione', label_en: 'Collection', custom_href: '/collezione', custom_href_en: '/collection' },
+	],
+	'footer-info': [
+		{
+			label: 'Eventi',
+			label_en: 'Events',
+			custom_href: '/eventi',
+			custom_href_en: '/events',
+		},
+	],
+	'footer-contatti': [
+		{ label: 'Contatti', label_en: 'Contacts', custom_href: '/contatti', custom_href_en: '/contacts' },
+	],
+};
+const fallbackFooterText =
+	currentLocale === 'en'
+		? '<p>Alessandro Gatto Art | <a href="mailto:info@alessandrogatto.art">info@alessandrogatto.art</a></p>'
+		: '<p>Alessandro Gatto Art | <a href="mailto:info@alessandrogatto.art">info@alessandrogatto.art</a></p>';
 
 try {
 	const optionsUrl = directusItemsUrl('options');
 	optionsUrl.searchParams.set('fields', 'logo_light,footer_text');
-	const optionsResponse = await fetch(optionsUrl);
+	const optionsResponse = await directusFetch(optionsUrl);
 	if (optionsResponse.ok) {
 		const optionsPayload = await optionsResponse.json();
 		const options =
@@ -51,21 +86,27 @@ try {
 			logoLightSrc = resolveImageSrc(options.logo_light);
 		}
 		if (options?.footer_text) {
-			footerText = options.footer_text;
-			iubendaPrivacyHref = extractIubendaPrivacyHref(options.footer_text);
+			footerText =
+				currentLocale === 'en' ? options.footer_text_en || options.footer_text : options.footer_text;
 		}
+	} else {
+		footerText = fallbackFooterText;
 	}
 
 	const menuFields =
-		'menu_items.menu_items_id.id,menu_items.menu_items_id.label,menu_items.menu_items_id.custom_href,menu_items.menu_items_id.pages.pages_id.id,menu_items.menu_items_id.pages.pages_id.slug,menu_items.menu_items_id.pages.pages_id.title';
+		'menu_items.menu_items_id.id,menu_items.menu_items_id.label,menu_items.menu_items_id.label_en,menu_items.menu_items_id.custom_href,menu_items.menu_items_id.custom_href_en,menu_items.menu_items_id.pages.pages_id.id,menu_items.menu_items_id.pages.pages_id.slug,menu_items.menu_items_id.pages.pages_id.slug_en,menu_items.menu_items_id.pages.pages_id.title,menu_items.menu_items_id.pages.pages_id.title_en';
 
 	for (const footerMenu of footerMenus) {
 		const url = directusItemsUrl('Menus');
 		url.searchParams.set('filter[slug][_eq]', footerMenu.slug);
 		url.searchParams.set('fields', menuFields);
-		const response = await fetch(url);
+		const response = await directusFetch(url);
 		if (!response.ok) {
-			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			footerMenu.items = fallbackFooterMenus[footerMenu.slug] || [];
+			if (response.status !== 401 && response.status !== 403) {
+				console.warn(`[Directus] Footer menu '${footerMenu.slug}' unavailable (${response.status}), using fallback.`);
+			}
+			continue;
 		}
 		const data = await response.json();
 		const menu: Menu | undefined = (data.data || [])[0];
@@ -80,10 +121,18 @@ try {
 			})
 			.filter((item): item is MenuItem => Boolean(item));
 
-		footerMenu.items = itemObjects;
+		footerMenu.items = itemObjects.length ? itemObjects : fallbackFooterMenus[footerMenu.slug] || [];
 	}
 } catch (error) {
-	console.error('Error fetching footer menu from Directus:', error);
+	for (const footerMenu of footerMenus) {
+		if (!footerMenu.items.length) {
+			footerMenu.items = fallbackFooterMenus[footerMenu.slug] || [];
+		}
+	}
+	if (!footerText) {
+		footerText = fallbackFooterText;
+	}
+	console.warn('Error fetching footer menu from Directus, using fallback menu.', error);
 }
 
 function resolveImageSrc(value: string) {
@@ -92,11 +141,6 @@ function resolveImageSrc(value: string) {
 		return value;
 	}
 	return `${DIRECTUS_URL}/assets/${value}`;
-}
-
-function extractIubendaPrivacyHref(html: string) {
-	const match = html.match(/href=["']([^"']*iubenda\.com\/privacy-policy[^"']*)["']/i);
-	return match?.[1] ?? '';
 }
 
 function getItemPage(item: MenuItem): PageItem | null {
@@ -121,20 +165,26 @@ function getItemPage(item: MenuItem): PageItem | null {
 }
 
 function getItemHref(item: MenuItem) {
-	if (item.custom_href) return item.custom_href;
+	const customHref = currentLocale === 'en' ? item.custom_href_en || item.custom_href : item.custom_href;
+	if (customHref) {
+		if (customHref.startsWith('http://') || customHref.startsWith('https://') || customHref.startsWith('#')) {
+			return customHref;
+		}
+		const localizedHref = currentLocale === 'en' ? englishPathFromItalian(customHref) : customHref;
+		return withLocalePath(localizedHref, currentLocale);
+	}
 	const page = getItemPage(item);
-	if (!page?.slug || page.slug === 'home') return '/';
-	return `/${page.slug}`;
+	const pageSlug = currentLocale === 'en' ? page?.slug_en || englishSlugFromItalian(page?.slug || '') : page?.slug;
+	if (!pageSlug || pageSlug === 'home') return withLocalePath('/', currentLocale);
+	return withLocalePath(`/${pageSlug}`, currentLocale);
 }
 
 function getItemTitle(item: MenuItem, index: number) {
-	return item.label || getItemPage(item)?.title || `Link ${index + 1}`;
-}
-
-function isPrivacyPolicyItem(title: string, href: string) {
-	const normalizedTitle = title.trim().toLowerCase();
-	const normalizedHref = href.trim().toLowerCase();
-	return normalizedTitle.includes('privacy policy') || normalizedHref === '/privacy-policy';
+	return (
+		localizedField(item, 'label', currentLocale) ||
+		localizedField(getItemPage(item), 'title', currentLocale) ||
+		`Link ${index + 1}`
+	);
 }
 ---
 
@@ -142,7 +192,7 @@ function isPrivacyPolicyItem(title: string, href: string) {
 	<nav aria-label="Menu footer">
 		<div>
 			<a href="/">
-				<img class="MenuLogo" src={logoLightSrc} alt={logoAlt} title={logoTitle} />
+				<img class="MenuLogo" src={logoLightSrc} alt="Logo" />
 			</a>
 		</div>
 		<div class="FooterItemsContainer">
@@ -151,16 +201,8 @@ function isPrivacyPolicyItem(title: string, href: string) {
 					{footerMenu.items.map((item, index) => {
 						const href = getItemHref(item);
 						const title = getItemTitle(item, index);
-						const shouldUseIubendaPrivacy = Boolean(
-							iubendaPrivacyHref && isPrivacyPolicyItem(title, href)
-						);
-						const resolvedHref = shouldUseIubendaPrivacy ? iubendaPrivacyHref : href;
 						return (
-							<a
-								href={resolvedHref}
-								class="menu_item"
-								data-privacy-policy-link={shouldUseIubendaPrivacy ? 'true' : undefined}
-							>
+							<a href={href} class="menu_item">
 								{title}
 							</a>
 						);
@@ -170,22 +212,4 @@ function isPrivacyPolicyItem(title: string, href: string) {
 		</div>
 	</nav>
 	<div class="footer_data" set:html={footerText} />
-	<script is:inline>
-		(() => {
-			const footerPrivacyLink = document.querySelector('.footer_data a[href*="iubenda.com/privacy-policy"]');
-			if (!(footerPrivacyLink instanceof HTMLAnchorElement)) return;
-
-			const privacyHref = footerPrivacyLink.href;
-			if (!privacyHref) return;
-
-			const links = document.querySelectorAll(
-				'a[href="/privacy-policy"], a[data-privacy-policy-link="true"]'
-			);
-
-			for (const link of links) {
-				if (!(link instanceof HTMLAnchorElement)) continue;
-				link.href = privacyHref;
-			}
-		})();
-	</script>
 </footer>

@@ -1,9 +1,11 @@
 ---
 import { directusAssetUrl } from '../lib/directus';
+import { englishSlugFromItalian, getLocaleFromPath, withLocalePath } from '../lib/i18n';
 
 interface PageRef {
 	id?: number;
 	slug?: string;
+	slug_en?: string;
 }
 
 interface SingleCard {
@@ -26,12 +28,14 @@ interface Props {
 }
 
 const { titolo = '', card = [] } = Astro.props;
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
 
 function resolveImageSrc(value: string | undefined) {
 	return directusAssetUrl(value, {
 		width: 760,
 		quality: 72,
 		format: 'webp',
+		fit: 'inside',
 	});
 }
 
@@ -60,19 +64,16 @@ function normalizeCards(input: CardRelation[] | SingleCard[]) {
 }
 
 function getCardHref(card: SingleCard) {
-	if (card.href) return card.href;
+	if (card.href) {
+		if (card.href.startsWith('http://') || card.href.startsWith('https://') || card.href.startsWith('#')) return card.href;
+		return withLocalePath(locale === 'en' ? card.href.replace(/^\/(.+)/, (_m, first) => `/${englishSlugFromItalian(first)}`) : card.href, locale);
+	}
 	if (card.link && typeof card.link === 'object' && card.link.slug) {
-		return card.link.slug === 'home' ? '/' : `/${card.link.slug}`;
+		const baseSlug = locale === 'en' ? card.link.slug_en || englishSlugFromItalian(card.link.slug) : card.link.slug;
+		if (!baseSlug || baseSlug === 'home') return withLocalePath('/', locale);
+		return withLocalePath(`/${baseSlug}`, locale);
 	}
 	return '';
-}
-
-function getCardImageMeta(card: SingleCard) {
-  const topic = card.titolo_card?.trim() || 'Servizi utensili CNC';
-  return {
-    alt: `${topic} - riaffilatura, rigenerazione e produzione utensili CNC`,
-    title: `${topic} | precisione e affidabilita produttiva`
-  };
 }
 
 const cards = normalizeCards(card);
@@ -89,13 +90,12 @@ const cards = normalizeCards(card);
 					const hasLabelLink = Boolean(single.link_label?.trim());
 					const Tag = href ? 'a' : 'div';
 					const imageSrc = resolveImageSrc(single.immagine);
-					const imageMeta = getCardImageMeta(single);
 
 					return (
 						<Tag class="cards_card" href={href || undefined}>
 							{imageSrc && (
 								<div class="cards_card_media">
-									<img src={imageSrc} alt={imageMeta.alt} title={imageMeta.title} loading="lazy" />
+									<img src={imageSrc} alt={single.titolo_card || ''} loading="lazy" />
 								</div>
 							)}
 							{single.titolo_card && <h3 class="cards_card_title">{single.titolo_card}</h3>}
@@ -113,7 +113,7 @@ const cards = normalizeCards(card);
 
 <style>
 	.cards_block {
-		padding: 40px 20px 20px;
+		padding: 56px 20px 24px;
 	}
 
 	.cards_block_inner {
@@ -122,9 +122,11 @@ const cards = normalizeCards(card);
 	}
 
 	.cards_block_title {
-		margin: 0 0 24px;
+		margin: 0 0 30px;
 		color: var(--bianco);
-		font-size: clamp(28px, 4vw, 42px);
+		font-size: clamp(34px, 6vw, 84px);
+		font-weight: 500;
+		letter-spacing: -0.01em;
 	}
 
 	.cards_grid {
@@ -137,29 +139,31 @@ const cards = normalizeCards(card);
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		padding: 55px 40px;
-		background: var(--bianco);
-		border-radius: 18px;
-		color: var(--nero);
+		padding: 34px 28px;
+		background: var(--surface);
+		border-radius: 0;
+		border: 1px solid var(--border);
+		color: var(--bianco);
 		transition: transform 200ms ease, box-shadow 200ms ease;
 		min-height: 100%;
-		transition: all .4s ease-out;
+		transition: all .32s ease-out;
 	}
 
 	.cards_card:hover {
-		scale:1.03;
+		transform: translateY(-3px);
 	} 
 
 	a.cards_card:hover {
-		transform: translateY(-4px);
-		box-shadow: 0 16px 30px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 22px 34px rgba(0, 0, 0, 0.35);
+		border-color: #4e4e4e;
 	}
 
 	.cards_card_media {
 		overflow: hidden;
-		border-radius: 12px;
+		border-radius: 0;
 		aspect-ratio: 4 / 3;
-		background: #fff;
+		background: #0a0a0a;
+		border: 1px solid #2a2a2a;
 	}
 
 	.cards_card_media img {
@@ -170,26 +174,30 @@ const cards = normalizeCards(card);
 
 	.cards_card_title {
 		margin: 4px 0 0;
-		font-size: 33px;
-		line-height: 33px;
-		text-align: center;
+		font-size: clamp(24px, 2.5vw, 38px);
+		line-height: 1.05;
+		text-align: left;
+		font-weight: 500;
 	}
 
 	.cards_card_subtitle {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		line-height: 1.45;
-		color: rgba(0, 0, 0, 0.75);
+		color: var(--text-muted);
 	}
 
 	.cards_card_link {
 		margin-top: auto;
 		align-self: flex-start;
 		font-weight: 600;
+		font-size: 12px;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
 		text-underline-offset: 2px;
-		width: 100%;
-		text-align: center;
-		color: var(--blu);
+		width: auto;
+		text-align: left;
+		color: var(--bianco);
 		text-decoration: none;
 	}
 
@@ -200,11 +208,6 @@ const cards = normalizeCards(card);
 	}
 
 	@media (max-width: 640px) {
-		.cards_block {
-			padding-left: 0;
-			padding-right: 0;
-		}
-
 		.cards_grid {
 			grid-template-columns: 1fr;
 		}

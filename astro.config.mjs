@@ -4,9 +4,9 @@ import { defineConfig } from 'astro/config';
 const directusUrl =
   process.env.PUBLIC_DIRECTUS_URL ||
   process.env.DIRECTUS_URL ||
-  'https://admin.asoloweb.it';
+  'https://alessandrogatto.asoloweb.it';
 let directusProtocol = 'https';
-let directusHostname = 'admin.asoloweb.it';
+let directusHostname = 'alessandrogatto.asoloweb.it';
 
 try {
   const parsed = new URL(directusUrl);
@@ -22,7 +22,7 @@ export default defineConfig({
     inlineStylesheets: 'always'
   },
   image: {
-    domains: [directusHostname],
+    domains: [directusHostname, 'alessandrogatto.art', 'www.alessandrogatto.art'],
     remotePatterns: [
       {
         protocol: directusProtocol,

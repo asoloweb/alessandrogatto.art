@@ -1,9 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageContent from '../components/PageContent.astro';
-import NewsBlock from '../components/news_block.astro';
-import ProdottiBlock from '../components/prodotti_block.astro';
-import { directusItemsUrl } from '../lib/directus';
+import { directusFetch, directusItemsUrl } from '../lib/directus';
 
 type Page = {
 	status?: string;
@@ -21,24 +19,28 @@ export async function getStaticPaths() {
 	const url = directusItemsUrl('pages');
 	url.searchParams.set(
 		'fields',
-		'*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.id,editor.item.card.single_card_id.link.slug,editor.item.card.single_card_id.link.title'
+		'*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.slider.slides.item:slides.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.id,editor.item.card.single_card_id.link.slug,editor.item.card.single_card_id.link.title'
 	);
-	const response = await fetch(url);
+	const response = await directusFetch(url);
 	const data = await response.json();
 	const pages = data?.data ?? [];
 	const publishedPages = pages.filter(
 		(page: Page) => page.status === 'published' && page.slug
 	);
+	const allowedSlugs = new Set([
+		'privacy-policy',
+		'cookie-policy',
+	]);
 
 	return publishedPages
-		.filter((page: Page) => page.slug !== 'home')
+		.filter((page: Page) => allowedSlugs.has(page.slug || ''))
 		.map((page: Page) => ({
 			params: { slug: page.slug },
-			props: { page },
+			props: { page: page as any },
 		}));
 }
 
-const { page } = Astro.props;
+const { page } = Astro.props as { page: Page | null };
 ---
 
 <BaseLayout
@@ -46,7 +48,5 @@ const { page } = Astro.props;
 	seoTitle={page?.seo_title}
 	seoDescription={page?.seo_desc}
 >
-	<PageContent page={page} />
-	{page?.slug === 'news' && <NewsBlock layout="grid" />}
-	{page?.slug === 'prodotti' && <ProdottiBlock titolo="Prodotti" />}
+	<PageContent page={page as any} />
 </BaseLayout>

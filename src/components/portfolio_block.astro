@@ -1,0 +1,214 @@
+---
+import { directusAssetUrl, directusFetch, directusItemsUrl } from '../lib/directus';
+import { getLocaleFromPath, withLocalePath } from '../lib/i18n';
+import { buildProductSlugMap, getProductTitle } from '../lib/products';
+import { slugifyLabel } from '../lib/slug';
+
+interface Category {
+	id?: number;
+	status?: string;
+	sort?: number;
+	titolo_categoria?: string;
+	descrizione_categoria?: string;
+}
+
+interface Project {
+	id?: number;
+	status?: string;
+	titolo?: string;
+	descrizione?: string;
+	foto_principale?: string;
+	anno?: number;
+	categoria?: Category | number | null;
+}
+
+interface Props {
+	titolo?: string;
+	mode?: 'collections' | 'projects' | 'filterable-projects';
+	selectedCollectionSlug?: string;
+}
+
+const { titolo = '', mode = 'collections', selectedCollectionSlug = '' } = Astro.props as Props;
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
+const isEnglish = locale === 'en';
+const componentId = `portfolio-${Math.random().toString(36).slice(2)}`;
+
+async function fetchCategories(): Promise<Category[]> {
+	const url = directusItemsUrl('portfolio_categorie');
+	url.searchParams.set('fields', 'id,status,sort,titolo_categoria,descrizione_categoria');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('sort', 'sort,titolo_categoria');
+	url.searchParams.set('limit', '-1');
+	const response = await directusFetch(url);
+	if (!response.ok) return [];
+	const payload = await response.json();
+	return Array.isArray(payload?.data) ? (payload.data as Category[]) : [];
+}
+
+async function fetchProjects(): Promise<Project[]> {
+	const url = directusItemsUrl('portfolio_opere');
+	url.searchParams.set('fields', 'id,status,sort,titolo,descrizione,foto_principale,anno,categoria.id,categoria.titolo_categoria,categoria.status');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('sort', 'sort,titolo');
+	url.searchParams.set('limit', '-1');
+	const response = await directusFetch(url);
+	if (!response.ok) return [];
+	const payload = await response.json();
+	return Array.isArray(payload?.data) ? (payload.data as Project[]) : [];
+}
+
+const [categories, projects] = await Promise.all([fetchCategories(), fetchProjects()]);
+const productSlugMap = buildProductSlugMap(projects as any);
+
+const categoryById = new Map<number, { title: string; slug: string; description: string }>();
+for (const category of categories) {
+	if (typeof category.id !== 'number') continue;
+	const title = category.titolo_categoria || String(category.id);
+	categoryById.set(category.id, {
+		title,
+		slug: slugifyLabel(title) || String(category.id),
+		description: category.descrizione_categoria || '',
+	});
+}
+
+function categoryForProject(project: Project) {
+	const raw = project.categoria;
+	if (!raw) return null;
+	if (typeof raw === 'number') return categoryById.get(raw) || null;
+	if (typeof raw === 'object' && typeof raw.id === 'number') {
+		const mapped = categoryById.get(raw.id);
+		if (mapped) return mapped;
+		const title = raw.titolo_categoria || String(raw.id);
+		return { title, slug: slugifyLabel(title) || String(raw.id), description: '' };
+	}
+	return null;
+}
+
+const collections = Array.from(categoryById.values());
+const normalizedSelectedCollectionSlug = selectedCollectionSlug.trim();
+const visibleProjects =
+	mode === 'projects' && normalizedSelectedCollectionSlug
+		? projects.filter((project) => categoryForProject(project)?.slug === normalizedSelectedCollectionSlug)
+		: projects;
+
+const collectionBasePath = isEnglish ? '/collection' : '/collezione';
+const projectBasePath = isEnglish ? '/project' : '/progetto';
+const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
+---
+
+<section class="portfolio_block" data-aos="fade-up" data-aos-duration="1200" id={componentId}>
+	<div class="portfolio_block_inner">
+		{titolo && mode !== 'filterable-projects' && <h2 class="portfolio_block_title">{titolo}</h2>}
+
+		{mode === 'collections' ? (
+			<div class="portfolio_collections_grid">
+				{collections.map((collection) => (
+					<a class="portfolio_collection_card" href={withLocalePath(`${collectionBasePath}/${collection.slug}`, locale)}>
+						<h3>{collection.title}</h3>
+						{collection.description && <p>{collection.description}</p>}
+					</a>
+				))}
+			</div>
+		) : (
+			<>
+				{mode === 'filterable-projects' && (
+					<nav class="portfolio_filters" aria-label={isEnglish ? 'Portfolio categories' : 'Categorie portfolio'}>
+						<button class="portfolio_filter is-active" type="button" data-category="all">{allLabel}</button>
+						{collections.map((collection) => (
+							<button class="portfolio_filter" type="button" data-category={collection.slug}>{collection.title}</button>
+						))}
+					</nav>
+				)}
+
+				<div class="portfolio_projects_grid">
+					{visibleProjects.map((project) => {
+						const title = getProductTitle(project as any) || (isEnglish ? 'Project' : 'Progetto');
+						const subtitle = project.descrizione || '';
+						const slug = typeof project.id === 'number' ? productSlugMap.get(project.id) || String(project.id) : '';
+						const category = categoryForProject(project);
+						const image = project.foto_principale;
+						return (
+							<a class="portfolio_project_card" href={withLocalePath(`${projectBasePath}/${slug}`, locale)} data-category={category?.slug || 'uncategorized'}>
+								{image && (
+									<div class="portfolio_project_media">
+										<img src={directusAssetUrl(image, { width: 900, height: 680, fit: 'cover', format: 'webp', quality: 74 })} alt={title} loading="lazy" />
+									</div>
+								)}
+								<div class="portfolio_project_content">
+									{category?.title && <p class="portfolio_project_meta">{category.title}</p>}
+									<h3>{title}</h3>
+									{project.anno && <p class="portfolio_project_year">{project.anno}</p>}
+									{subtitle && <p>{subtitle}</p>}
+								</div>
+							</a>
+						);
+					})}
+				</div>
+			</>
+		)}
+	</div>
+</section>
+
+{mode === 'filterable-projects' && (
+	<script is:inline define:vars={{ componentId }}>
+		(() => {
+			const root = document.getElementById(componentId);
+			if (!root) return;
+			const filters = Array.from(root.querySelectorAll('.portfolio_filter'));
+			const cards = Array.from(root.querySelectorAll('.portfolio_project_card'));
+
+			const setCategory = (value) => {
+				filters.forEach((filter) => {
+					const isActive = filter.getAttribute('data-category') === value;
+					filter.classList.toggle('is-active', isActive);
+				});
+
+				cards.forEach((card) => {
+					const category = card.getAttribute('data-category') || 'uncategorized';
+					const visible = value === 'all' || category === value;
+					card.style.display = visible ? '' : 'none';
+				});
+			};
+
+			filters.forEach((filter) => {
+				filter.addEventListener('click', () => {
+					const value = filter.getAttribute('data-category') || 'all';
+					setCategory(value);
+				});
+			});
+
+			setCategory('all');
+		})();
+	</script>
+)}
+
+<style>
+	.portfolio_block { padding: 20px 20px 70px; }
+	.portfolio_block_inner { max-width: var(--max-width); margin: 0 auto; }
+	.portfolio_block_title { margin: 0 0 22px; color: var(--bianco); font-size: clamp(38px, 7vw, 100px); font-weight: 500; letter-spacing: -0.01em; }
+	.portfolio_collections_grid,
+	.portfolio_projects_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+	.portfolio_collection_card,
+	.portfolio_project_card { background: #111; color: #f3f3f3; border-radius: 0; overflow: hidden; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; border: 1px solid #2d2d2d; }
+	a.portfolio_collection_card:hover,
+	a.portfolio_project_card:hover { transform: translateY(-4px); box-shadow: 0 20px 36px rgba(0, 0, 0, .36); border-color: #4d4d4d; }
+	.portfolio_project_media { aspect-ratio: 4 / 3; background: #e9e9e9; }
+	.portfolio_project_media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.portfolio_collection_card h3,
+	.portfolio_project_content h3 { margin: 16px 16px 8px; font-size: clamp(22px, 2.4vw, 36px); line-height: 1.08; font-weight: 500; }
+	.portfolio_collection_card p,
+	.portfolio_project_content p { margin: 0 16px 18px; line-height: 1.45; color: #c8c8c8; }
+	.portfolio_project_meta { font-size: 12px; letter-spacing: .4px; text-transform: uppercase; font-weight: 700; margin-top: 18px; }
+	.portfolio_project_year { font-weight: 700; }
+	.portfolio_filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 22px; justify-content: center; }
+	.portfolio_filter { border: 1px solid rgba(255, 255, 255, .5); background: transparent; color: var(--bianco); padding: 10px 14px; border-radius: 999px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+	.portfolio_filter.is-active { background: var(--primary); border-color: var(--primary); color: var(--nero); }
+	@media (max-width: 980px) {
+		.portfolio_collections_grid,
+		.portfolio_projects_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	}
+	@media (max-width: 640px) {
+		.portfolio_collections_grid,
+		.portfolio_projects_grid { grid-template-columns: 1fr; }
+	}
+</style>

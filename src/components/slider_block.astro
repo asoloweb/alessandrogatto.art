@@ -6,7 +6,8 @@ interface SlideItem {
 	sottotitolo?: string;
 	label?: string;
 	href?: string;
-	immagine?: string;
+	immagine?: string | { id?: string | null } | null;
+	video_sfondo?: string | { id?: string | null } | null;
 }
 
 interface Props {
@@ -15,8 +16,6 @@ interface Props {
 	sottotitolo?: string;
 	label?: string;
 	href?: string;
-	autoplay?: boolean;
-	autoplayDelay?: number;
 }
 
 const {
@@ -25,8 +24,6 @@ const {
 	sottotitolo = '',
 	label = '',
 	href = '',
-	autoplay = false,
-	autoplayDelay = 3000,
 } = Astro.props;
 
 const resolvedSlides =
@@ -45,58 +42,78 @@ const hasMultipleSlides = resolvedSlides.length > 1;
 
 const sliderId = `slider-${Math.random().toString(36).slice(2)}`;
 
-function resolveImageSrc(value: string | undefined) {
-	return directusAssetUrl(value, {
+function resolveImageId(value: SlideItem['immagine']) {
+	if (!value) return undefined;
+	if (typeof value === 'string') return value;
+	if (typeof value === 'object' && typeof value.id === 'string') return value.id;
+	return undefined;
+}
+
+function resolveImageSrc(value: SlideItem['immagine']) {
+	return directusAssetUrl(resolveImageId(value), {
 		width: 1920,
 		height: 1080,
 		quality: 72,
 		format: 'webp',
+		fit: 'cover',
 	});
 }
 
-function getSlideImageMeta(slide: SlideItem) {
-  const topic = slide.titolo?.trim() || 'Servizi CNC di precisione';
-  return {
-    alt: `${topic} - riaffilatura, rigenerazione e produzione utensili CNC`,
-    title: `${topic} | affilatrici CNC a 5 assi e controllo qualita`
-  };
+function resolveVideoId(value: SlideItem['video_sfondo']) {
+	if (!value) return undefined;
+	if (typeof value === 'string') return value;
+	if (typeof value === 'object' && typeof value.id === 'string') return value.id;
+	return undefined;
+}
+
+function resolveVideoSrc(value: SlideItem['video_sfondo']) {
+	return directusAssetUrl(resolveVideoId(value));
 }
 ---
 
-<div
-	class="slider_block swiper"
-	id={sliderId}
-	data-swiper-autoplay={autoplay && hasMultipleSlides ? 'true' : undefined}
-	data-swiper-autoplay-delay={autoplay && hasMultipleSlides ? String(autoplayDelay) : undefined}
->
+<div class="slider_block swiper" id={sliderId}>
 	<div class="swiper-wrapper">
-		{resolvedSlides.map((slide, index) => (
-			<div class="swiper-slide single_slide">
-			{slide.immagine && (
-				<img
-					class="single_slide_bg"
-					src={resolveImageSrc(slide.immagine)}
-					alt={getSlideImageMeta(slide).alt}
-					title={getSlideImageMeta(slide).title}
-					loading={index === 0 ? 'eager' : 'lazy'}
-					fetchpriority={index === 0 ? 'high' : 'auto'}
-					decoding="async"
-				/>
-			)}
-			<div class="swiper-slide-container">
-				{slide.titolo && <h1 data-aos="fade-up" data-aos-duration="1500">{slide.titolo}</h1>}
-				{slide.sottotitolo && <h2 data-aos="fade-up" data-aos-duration="1800">{slide.sottotitolo}</h2>}
-				{slide.label && slide.href && (
-					<button data-aos="fade-up" data-aos-duration="2000" class="slider_button MainButton" type="button" data-href={slide.href}>
-						{slide.label}
-					</button>
-				)}
-				{slide.immagine && (
-					<span class="slide_image_sr" aria-hidden="true"></span>
-				)}
-			</div>
-			</div>
-		))}
+		{resolvedSlides.map((slide, index) => {
+			const imageSrc = resolveImageSrc(slide.immagine);
+			const videoSrc = resolveVideoSrc(slide.video_sfondo);
+			const hasVideo = Boolean(videoSrc);
+			return (
+				<div class="swiper-slide single_slide" style={!hasVideo && imageSrc ? `background-image: url('${imageSrc}')` : undefined}>
+					{videoSrc && (
+						<video
+							class="single_slide_video"
+							src={videoSrc}
+							autoplay
+							muted
+							loop
+							playsinline
+							preload="auto"
+							aria-hidden="true"
+						/>
+					)}
+					{!hasVideo && imageSrc && (
+						<img
+							class="single_slide_bg"
+							src={imageSrc}
+							alt={slide.titolo || ''}
+							loading={index === 0 ? 'eager' : 'lazy'}
+							fetchpriority={index === 0 ? 'high' : 'auto'}
+							decoding="async"
+						/>
+					)}
+					<div class="swiper-slide-container">
+						{slide.titolo && <h1 data-aos="fade-up" data-aos-duration="1500">{slide.titolo}</h1>}
+						{slide.sottotitolo && <h2 data-aos="fade-up" data-aos-duration="1800">{slide.sottotitolo}</h2>}
+						{slide.label && slide.href && (
+							<button data-aos="fade-up" data-aos-duration="2000" class="slider_button MainButton" type="button" data-href={slide.href}>
+								{slide.label}
+							</button>
+						)}
+						{(imageSrc || videoSrc) && <span class="slide_image_sr" aria-hidden="true"></span>}
+					</div>
+				</div>
+			);
+		})}
 	</div>
 	{hasMultipleSlides && <div class="swiper-pagination"></div>}
 	{hasMultipleSlides && <div class="swiper-button-prev"></div>}
@@ -113,14 +130,14 @@ function getSlideImageMeta(slide: SlideItem) {
 
 		.title_block h1 {
 		margin: 0;
-		color: var(--blu);
+		color: var(--primary);
 		}
 
 		.slider_block {
-		margin:0;
+		margin: 0;
 		display: grid;
 		gap: 16px;
-		height:calc(80vh - 120px);
+		height: calc(100vh - 120px);
 		}
 
 		.slider_block .single_slide {
@@ -134,17 +151,22 @@ function getSlideImageMeta(slide: SlideItem) {
 		}
 
 		.single_slide h1 {
-		font-size:80px;
-		line-height: 80px;
-		text-shadow: 12px 6px 15px #000;
-		max-width: calc(var(--max-width)/1.4);
-		margin:0;
+		font-size: clamp(46px, 8vw, 128px);
+		line-height: 0.95;
+		text-shadow: 0 20px 38px rgba(0, 0, 0, 0.45);
+		max-width: min(14ch, 100%);
+		margin: 0;
+		font-weight: 500;
+		letter-spacing: -0.015em;
 		}
 
 		.single_slide h2 {
-		font-size:25px;
-		line-height: 30px;
-		max-width: calc(var(--max-width)/2);
+		font-size: clamp(17px, 2.2vw, 30px);
+		line-height: 1.35;
+		max-width: min(46ch, 100%);
+		font-weight: 300;
+		color: #e8e8e8;
+		margin: 16px 0 0;
 		}
 
 		.slider_block .single_slide > .swiper-slide-container {
@@ -161,62 +183,80 @@ function getSlideImageMeta(slide: SlideItem) {
 			z-index: 0;
 		}
 
+		.slider_block .single_slide > .single_slide_video {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			z-index: 0;
+		}
+
 		.swiper-slide-container {
-			margin: auto;
+			margin: 0 auto;
 			width: min(var(--SiteWidth), 100%);
-			max-width: 100%;
+			padding: 0 24px 60px;
+			display: flex;
+			flex-direction: column;
+			justify-content: flex-end;
+			height: 100%;
 		}
 
 	.single_slide {
-		text-align: center;
-		padding: 20px;
+		padding: 0;
 		text-align: left;
 		background-size: cover;
 		background-position: center;
-		min-height: 240px;
+		min-height: 340px;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
 		gap: 8px;
+	}
+
+	.slider_block .single_slide::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.65) 100%);
+		z-index: 0;
 	}
 	.slide_image_sr {
 		display: none;
 	}
 	:global(.swiper-button-prev),
 	:global(.swiper-button-next) {
-		color: #111;
+		color: #fff;
+		width: 42px;
+		height: 42px;
+		background: rgba(0, 0, 0, 0.34);
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 999px;
+	}
+
+	:global(.swiper-button-prev)::after,
+	:global(.swiper-button-next)::after {
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	:global(.swiper-pagination-bullet) {
+		background: rgba(255, 255, 255, 0.45);
+		opacity: 1;
+	}
+
+	:global(.swiper-pagination-bullet-active) {
+		background: #fff;
 	}
 
 	@media (max-width: 640px) {
-		.slider_block {
-			height: 85vh;
-		}
-
-		:global(.slider_block .swiper-button-prev),
-		:global(.slider_block .swiper-button-next) {
-			display: none;
-		}
-
-		.single_slide {
-			padding: 16px;
+		.single_slide h1 {
+			font-size: 48px;
+			line-height: 0.95;
 		}
 
 		.swiper-slide-container {
-			width: 100%;
-		}
-
-		.single_slide h1 {
-			font-size: clamp(30px, 10vw, 45px);
-			line-height: 1.08;
-			max-width: 100%;
-			overflow-wrap: anywhere;
-			hyphens: none;
-		}
-
-		.single_slide h2 {
-			max-width: 100%;
-			overflow-wrap: anywhere;
-			hyphens: none;
+			padding: 0 18px 44px;
 		}
 	}
 </style>

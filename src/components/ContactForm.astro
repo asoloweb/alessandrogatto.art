@@ -7,12 +7,9 @@ interface Props {
 
 const { title = 'Invia richiesta' } = Astro.props;
 
-const flowTriggerId =
-	import.meta.env.PUBLIC_DIRECTUS_FLOW_TRIGGER_ID || import.meta.env.DIRECTUS_FLOW_TRIGGER_ID;
+const flowTriggerId = import.meta.env.PUBLIC_DIRECTUS_FLOW_TRIGGER_ID;
 const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 	? import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
-	: import.meta.env.DIRECTUS_WEBHOOK_RICHIESTE
-	? import.meta.env.DIRECTUS_WEBHOOK_RICHIESTE
 	: flowTriggerId
 	? `${DIRECTUS_URL}/flows/trigger/${flowTriggerId}`
 	: '';
@@ -23,69 +20,34 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 
 	<form class="contact_form_form" method="post" data-webhook-url={webhookUrl}>
 		<label class="contact_form_field">
-			<span>Ragione sociale <span aria-hidden="true">*</span></span>
-			<input
-				name="ragione_sociale"
-				type="text"
-				autocomplete="organization"
-				required
-				data-error-message="Inserisci la ragione sociale."
-			/>
+			<span>Ragione sociale</span>
+			<input name="ragione_sociale" type="text" autocomplete="organization" required />
 		</label>
 
 		<label class="contact_form_field">
-			<span>Email <span aria-hidden="true">*</span></span>
-			<input
-				name="email"
-				type="email"
-				autocomplete="email"
-				required
-				data-error-message="Inserisci un indirizzo email valido."
-			/>
+			<span>Email</span>
+			<input name="email" type="email" autocomplete="email" required />
 		</label>
 
 		<label class="contact_form_field">
-			<span>Telefono <span aria-hidden="true">*</span></span>
-			<input
-				name="telefono"
-				type="tel"
-				autocomplete="tel"
-				required
-				data-error-message="Inserisci il numero di telefono."
-			/>
+			<span>Telefono</span>
+			<input name="telefono" type="tel" autocomplete="tel" />
 		</label>
 
 		<label class="contact_form_field">
-			<span>Referente <span aria-hidden="true">*</span></span>
-			<input
-				name="referente"
-				type="text"
-				autocomplete="name"
-				required
-				data-error-message="Inserisci il nome del referente."
-			/>
+			<span>Referente</span>
+			<input name="referente" type="text" autocomplete="name" required />
 		</label>
 
 		<label class="contact_form_field">
-			<span>Messaggio <span aria-hidden="true">*</span></span>
-			<textarea
-				name="messaggio"
-				rows={6}
-				required
-				data-error-message="Inserisci un messaggio prima di inviare."
-			></textarea>
+			<span>Messaggio</span>
+			<textarea name="messaggio" rows={6} required></textarea>
 		</label>
 
 		<label class="contact_form_privacy">
-			<input
-				name="privacy"
-				type="checkbox"
-				required
-				data-error-message="Devi accettare la privacy policy per continuare."
-			/>
+			<input name="privacy" type="checkbox" required />
 			<span>
-				Accetto la <a href="/privacy-policy" data-privacy-policy-link="true">privacy policy</a>{' '}
-				<span aria-hidden="true">*</span>
+				Accetto la <a href="/privacy-policy">privacy policy</a>
 			</span>
 		</label>
 
@@ -101,33 +63,12 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 		const submitButton = form.querySelector('.contact_form_submit');
 		const webhookUrl = form.dataset.webhookUrl;
 
-		const validityFields = form.querySelectorAll('input, textarea');
-		for (const field of validityFields) {
-			if (
-				!(field instanceof HTMLInputElement) &&
-				!(field instanceof HTMLTextAreaElement)
-			) {
-				continue;
-			}
-
-			const errorMessage = field.dataset.errorMessage || 'Campo obbligatorio.';
-			field.addEventListener('invalid', () => {
-				if (field.validity.valueMissing || field.validity.typeMismatch) {
-					field.setCustomValidity(errorMessage);
-				}
-			});
-
-			field.addEventListener('input', () => {
-				field.setCustomValidity('');
-			});
-		}
-
 		form.addEventListener('submit', async (event) => {
 			event.preventDefault();
 			if (!webhookUrl) {
 				if (statusEl) {
 					statusEl.textContent =
-						"Webhook non configurato. Imposta PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE/DIRECTUS_WEBHOOK_RICHIESTE o PUBLIC_DIRECTUS_FLOW_TRIGGER_ID/DIRECTUS_FLOW_TRIGGER_ID.";
+						"Webhook non configurato. Imposta PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE o PUBLIC_DIRECTUS_FLOW_TRIGGER_ID.";
 					statusEl.dataset.state = 'error';
 				}
 				return;
@@ -184,11 +125,6 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 					throw new Error(`Webhook error: ${response.status}`);
 				}
 
-				const umamiApi = window.umami;
-				if (umamiApi?.track) {
-					umamiApi.track('richiesta_dal_sitoweb');
-				}
-
 				form.reset();
 				if (statusEl) {
 					statusEl.textContent = 'Richiesta inviata con successo.';
@@ -235,12 +171,6 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 		font-size: 14px;
 	}
 
-	.contact_form_field span [aria-hidden='true'],
-	.contact_form_privacy span [aria-hidden='true'] {
-		color: #b42318;
-		font-weight: 700;
-	}
-
 	.contact_form_field input,
 	.contact_form_field textarea {
 		border: 1px solid #d9d9d9;
@@ -268,7 +198,7 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 	}
 
 	.contact_form_privacy a {
-		color: var(--blu);
+		color: var(--primary);
 		text-decoration: underline;
 	}
 
@@ -277,7 +207,7 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 		border: 0;
 		border-radius: 999px;
 		padding: 12px 18px;
-		background: var(--blu);
+		background: var(--primary);
 		color: var(--bianco);
 		font-family: var(--font-heading);
 		font-size: 16px;

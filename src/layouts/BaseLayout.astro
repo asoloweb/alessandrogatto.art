@@ -1,7 +1,8 @@
 ---
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { DIRECTUS_URL, directusItemsUrl } from '../lib/directus';
+import { DIRECTUS_URL, directusFetch, directusItemsUrl } from '../lib/directus';
+import { getLocaleFromPath } from '../lib/i18n';
 import '../styles/global.css';
 
 export interface Props {
@@ -12,6 +13,7 @@ export interface Props {
 
 const { title, seoTitle, seoDescription } = Astro.props;
 const resolvedTitle = seoTitle || title;
+const htmlLang = getLocaleFromPath(Astro.url?.pathname ?? '/') === 'en' ? 'en' : 'it';
 
 function resolveImageSrc(value: string) {
 	if (!value) return '';
@@ -22,12 +24,11 @@ function resolveImageSrc(value: string) {
 }
 
 let logoLightSrc = import.meta.env.PUBLIC_LOGO_LIGHT || '/favicon.svg';
-let faviconSrc = import.meta.env.PUBLIC_FAVICON || import.meta.env.PUBLIC_LOGO_LIGHT || '/favicon.ico';
 
 try {
 	const optionsUrl = directusItemsUrl('options');
 	optionsUrl.searchParams.set('fields', 'logo_light');
-	const optionsResponse = await fetch(optionsUrl);
+	const optionsResponse = await directusFetch(optionsUrl);
 	if (optionsResponse.ok) {
 		const optionsPayload = await optionsResponse.json();
 		const options =
@@ -36,7 +37,6 @@ try {
 				: optionsPayload?.data;
 		if (options?.logo_light) {
 			logoLightSrc = resolveImageSrc(options.logo_light);
-			faviconSrc = logoLightSrc;
 		}
 	}
 } catch (error) {
@@ -44,57 +44,15 @@ try {
 }
 ---
 
-<html lang="en">
+<html lang={htmlLang}>
 	<head>
 		<meta charset="utf-8" />
-		<script is:inline>
-			(() => {
-				if (typeof window === 'undefined') return;
-				if (window.location.hostname !== 'www.alessandrogatto.art') return;
-				const target = `https://alessandrogatto.art${window.location.pathname}${window.location.search}${window.location.hash}`;
-				window.location.replace(target);
-			})();
-		</script>
-		<script is:inline>
-			(() => {
-				const forcedColor = '#000000';
-				const metas = document.querySelectorAll('meta[name="theme-color"]');
-				if (metas.length > 0) {
-					metas.forEach((meta) => meta.setAttribute('content', forcedColor));
-					return;
-				}
-				const meta = document.createElement('meta');
-				meta.setAttribute('name', 'theme-color');
-				meta.setAttribute('content', forcedColor);
-				document.head.appendChild(meta);
-			})();
-		</script>
-		<link rel="icon" href={faviconSrc} />
 		<link rel="icon" type="image/svg+xml" href={logoLightSrc} />
-		<link rel="shortcut icon" href={faviconSrc} />
-		<link rel="apple-touch-icon" href={logoLightSrc} />
-		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-		<meta name="theme-color" content="#000000" />
-		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#000000" />
-		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<link rel="icon" href={logoLightSrc} />
+		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{resolvedTitle}</title>
 		{seoDescription && <meta name="description" content={seoDescription} />}
-		<meta property="og:title" content={resolvedTitle} />
-		{seoDescription && <meta property="og:description" content={seoDescription} />}
-		<meta property="og:image" content={logoLightSrc} />
-		<meta name="twitter:card" content="summary" />
-		<meta name="twitter:title" content={resolvedTitle} />
-		{seoDescription && <meta name="twitter:description" content={seoDescription} />}
-		<meta name="twitter:image" content={logoLightSrc} />
-		<script type="application/ld+json" set:html={JSON.stringify({
-			'@context': 'https://schema.org',
-			'@type': 'Organization',
-			name: 'Alessandro Gatto',
-			logo: logoLightSrc,
-		})} />
 		<link
 			rel="preload"
 			href="/fonts/roboto-latin-400-normal.woff2"
@@ -132,7 +90,6 @@ try {
 			<link rel="stylesheet" href="/vendor/aos.css" />
 			<link rel="stylesheet" href="/vendor/swiper-bundle.min.css" />
 		</noscript>
-		<script defer src="https://umami.asoloweb.it/script.js" data-website-id="bf24da24-fab3-4a9a-946a-6db08bf5acce"></script>
 	</head>
 	<body>
 		<Header />

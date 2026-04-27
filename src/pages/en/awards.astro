@@ -1,0 +1,137 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { fetchPublishedPageBySlug } from '../../lib/pages';
+import { fetchRiconoscimenti } from '../../lib/riconoscimenti';
+import { directusAssetUrl } from '../../lib/directus';
+import { getLocaleFromPath, localizedField } from '../../lib/i18n';
+
+const page = await fetchPublishedPageBySlug('riconoscimenti', 'awards');
+const riconoscimenti = await fetchRiconoscimenti();
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
+const isEnglish = locale === 'en';
+
+const pageTitle = localizedField(page as any, 'title', locale);
+const pageDescription = localizedField(page as any, 'description', locale);
+const showPageHeader = page && !(page as any).hide_page_header;
+const pageHeaderImage = page?.featured_image ? directusAssetUrl(page.featured_image, { width: 1920, quality: 80, format: 'webp' }) : '';
+---
+
+<BaseLayout title={pageTitle || 'Awards'} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
+	{showPageHeader && (
+		<div class="page_header" style={pageHeaderImage ? `background-image: url('${pageHeaderImage}')` : undefined}>
+			<div class="page_header_inner">
+				<h1 data-aos="fade-up" data-aos-duration="1500">{pageTitle}</h1>
+				{pageDescription && <p data-aos="fade-up" data-aos-duration="1800">{pageDescription}</p>}
+			</div>
+		</div>
+	)}
+
+	<section class="riconoscimenti_section">
+		<div class="riconoscimenti_inner">
+			<div class="riconoscimenti_grid">
+				{riconoscimenti.map((r) => {
+					const titolo = isEnglish && r.titolo_en ? r.titolo_en : r.titolo;
+					const descrizione = isEnglish && r.descrizione_en ? r.descrizione_en : r.descrizione;
+					return (
+						<article class="riconoscimento_card">
+							{r.data && <span class="riconoscimento_anno">{r.data}</span>}
+							<h3 class="riconoscimento_titolo">{titolo}</h3>
+							{descrizione && <p class="riconoscimento_desc">{descrizione}</p>}
+							{r.link_esterno && (
+								<a href={r.link_esterno} target="_blank" rel="noopener noreferrer" class="riconoscimento_link">
+									{isEnglish ? 'View more' : 'Approfondisci'}
+								</a>
+							)}
+						</article>
+					);
+				})}
+			</div>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.riconoscimenti_section {
+		padding: 56px 20px 100px;
+	}
+
+	.riconoscimenti_inner {
+		max-width: var(--max-width);
+		margin: 0 auto;
+	}
+
+	.riconoscimenti_grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 32px;
+	}
+
+	.riconoscimento_card {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 36px 32px;
+		background: var(--surface);
+		border-radius: 0;
+		border: 1px solid var(--border);
+		color: var(--bianco);
+		transition: all .32s ease-out;
+	}
+
+	.riconoscimento_card:hover {
+		transform: translateY(-3px);
+		border-color: #4e4e4e;
+	}
+
+	.riconoscimento_anno {
+		font-size: 13px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--theme--primary);
+		margin-bottom: 4px;
+	}
+
+	.riconoscimento_titolo {
+		margin: 0;
+		font-size: clamp(22px, 2.2vw, 32px);
+		line-height: 1.15;
+		font-weight: 500;
+	}
+
+	.riconoscimento_desc {
+		margin: 0;
+		font-size: 15px;
+		line-height: 1.55;
+		color: var(--text-muted);
+	}
+
+	.riconoscimento_link {
+		margin-top: auto;
+		align-self: flex-start;
+		font-weight: 600;
+		font-size: 12px;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+		text-decoration: none;
+		color: var(--bianco);
+		border-bottom: 1px solid transparent;
+		transition: border-color 200ms ease;
+	}
+
+	.riconoscimento_link:hover {
+		border-color: var(--bianco);
+	}
+
+	@media (max-width: 1024px) {
+		.riconoscimenti_grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 640px) {
+		.riconoscimenti_grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

@@ -20,6 +20,7 @@ type DatedItem = {
 
 type CmsPage = DatedItem & {
   slug?: string;
+  slug_en?: string;
   status?: string;
 };
 
@@ -45,7 +46,7 @@ type CategoryItem = DatedItem & {
 const SITE_URL = (
   import.meta.env.PUBLIC_SITE_URL ||
   import.meta.env.SITE_URL ||
-  'https://stevanin.it'
+  'https://alessandrogatto.art'
 ).replace(/\/+$/, '');
 
 function toIsoDate(value: string | undefined) {
@@ -107,20 +108,30 @@ export const GET: APIRoute = async () => {
 
   const staticEntries: UrlEntry[] = [
     { loc: `${SITE_URL}/`, lastmod: today, changefreq: 'weekly', priority: '1.0' },
-    { loc: `${SITE_URL}/prodotti`, lastmod: today, changefreq: 'weekly', priority: '0.9' },
-    { loc: `${SITE_URL}/news`, lastmod: today, changefreq: 'daily', priority: '0.8' },
+    { loc: `${SITE_URL}/portfolio`, lastmod: today, changefreq: 'weekly', priority: '0.9' },
+    { loc: `${SITE_URL}/collezione`, lastmod: today, changefreq: 'weekly', priority: '0.9' },
+    { loc: `${SITE_URL}/eventi`, lastmod: today, changefreq: 'weekly', priority: '0.8' },
     { loc: `${SITE_URL}/contatti`, lastmod: today, changefreq: 'monthly', priority: '0.7' }
   ];
 
   const [pages, news, products, categories] = await Promise.all([
-    fetchItems<CmsPage>('pages', 'slug,status,date_created,date_updated'),
+    fetchItems<CmsPage>('pages', 'slug,slug_en,status,date_created,date_updated'),
     fetchItems<NewsItem>('News', 'id,titolo,status,date_created,date_updated'),
     fetchItems<ProductItem>('Prodotti', 'id,titolo,codice_prodotto,status,date_created,date_updated'),
     fetchItems<CategoryItem>('Categorie', 'id,titolo_categoria,status,date_created,date_updated')
   ]);
 
+  const allowedPageSlugs = new Set([
+    'chi-sono-filosofia',
+    'riconoscimenti',
+    'portfolio',
+    'eventi',
+    'privacy-policy',
+    'cookie-policy'
+  ]);
+
   const pageEntries: UrlEntry[] = pages
-    .filter((page) => typeof page.slug === 'string' && page.slug && page.slug !== 'home')
+    .filter((page) => typeof page.slug === 'string' && page.slug && allowedPageSlugs.has(page.slug))
     .map((page) => ({
       loc: `${SITE_URL}/${encodeURIComponent(page.slug!)}`,
       lastmod: pickLastmod(page),
@@ -140,7 +151,7 @@ export const GET: APIRoute = async () => {
       usedNewsSlugs.add(resolvedSlug);
 
       return {
-        loc: `${SITE_URL}/news/${encodeURIComponent(resolvedSlug)}`,
+        loc: `${SITE_URL}/eventi/${encodeURIComponent(resolvedSlug)}`,
         lastmod: pickLastmod(item),
         changefreq: 'weekly',
         priority: '0.7'
@@ -151,7 +162,7 @@ export const GET: APIRoute = async () => {
   const productEntries: UrlEntry[] = products
     .filter((item) => typeof item.id === 'number')
     .map((item) => ({
-      loc: `${SITE_URL}/prodotti/${encodeURIComponent(productSlugMap.get(item.id!) || String(item.id))}`,
+      loc: `${SITE_URL}/progetto/${encodeURIComponent(productSlugMap.get(item.id!) || String(item.id))}`,
       lastmod: pickLastmod(item),
       changefreq: 'weekly',
       priority: '0.7'
@@ -164,7 +175,7 @@ export const GET: APIRoute = async () => {
       if (!slug || usedCategorySlugs.has(slug)) return null;
       usedCategorySlugs.add(slug);
       return {
-        loc: `${SITE_URL}/prodotti/categoria/${encodeURIComponent(slug)}`,
+        loc: `${SITE_URL}/collezione/${encodeURIComponent(slug)}`,
         lastmod: pickLastmod(category),
         changefreq: 'weekly',
         priority: '0.7'

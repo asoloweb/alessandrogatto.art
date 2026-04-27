@@ -35,8 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
       options.navigation = { nextEl, prevEl };
     }
     if (el.getAttribute('data-swiper-autoplay') === 'true') {
-      const autoplayDelay = Number(el.getAttribute('data-swiper-autoplay-delay')) || 4500;
-      options.autoplay = { delay: autoplayDelay, disableOnInteraction: false };
+      options.autoplay = { delay: 4500, disableOnInteraction: false };
     }
 
     try {

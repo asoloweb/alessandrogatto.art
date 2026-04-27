@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageContent from '../../components/PageContent.astro';
+import { directusFetch, directusItemsUrl } from '../../lib/directus';
+import { englishSlugFromItalian } from '../../lib/i18n';
+
+type Page = {
+  status?: string;
+  slug?: string;
+  slug_en?: string;
+  title?: string;
+  title_en?: string;
+  seo_title?: string;
+  seo_title_en?: string;
+  seo_desc?: string;
+  seo_desc_en?: string;
+  editor?: unknown[];
+};
+
+export async function getStaticPaths() {
+  const url = directusItemsUrl('pages');
+  url.searchParams.set(
+    'fields',
+    '*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.slider.slides.item:slides.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.id,editor.item.card.single_card_id.link.slug,editor.item.card.single_card_id.link.slug_en,editor.item.card.single_card_id.link.title,editor.item.card.single_card_id.link.title_en'
+  );
+  const response = await directusFetch(url);
+  const data = await response.json();
+  const pages = data?.data ?? [];
+  const publishedPages = pages.filter((page: Page) => page.status === 'published');
+  const allowedSlugs = new Set([
+    'privacy-policy',
+    'cookie-policy',
+  ]);
+
+  return publishedPages
+    .filter((page: Page) => {
+      const resolvedSlug = page.slug_en || englishSlugFromItalian(page.slug || '');
+      if (!resolvedSlug || resolvedSlug === 'home') return false;
+      return allowedSlugs.has(resolvedSlug);
+    })
+    .map((page: Page) => ({
+      params: { slug: page.slug_en || englishSlugFromItalian(page.slug || '') },
+      props: { page: page as any },
+    }));
+}
+
+const { page } = Astro.props as { page: Page };
+---
+
+<BaseLayout
+  title={page?.title_en || page?.title || 'Page'}
+  seoTitle={page?.seo_title_en || page?.seo_title}
+  seoDescription={page?.seo_desc_en || page?.seo_desc}
+>
+  <PageContent page={page as any} />
+</BaseLayout>

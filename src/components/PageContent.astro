@@ -4,13 +4,18 @@ import TitleBlock from '../components/title_block.astro';
 import SliderBlock from '../components/slider_block.astro';
 import CardsBlock from '../components/cards_block.astro';
 import { DIRECTUS_URL } from '../lib/directus';
+import { getLocaleFromPath, localizedField } from '../lib/i18n';
 
 type HeroBlockItem = {
 	id: number;
 	titolo?: string;
+	titolo_en?: string;
 	sottotitolo?: string;
+	sottotitolo_en?: string;
 	paragrafo?: string;
+	paragrafo_en?: string;
 	label?: string;
+	label_en?: string;
 	href?: string;
 	immagine?: string;
 	inverti?: boolean;
@@ -20,10 +25,14 @@ type HeroBlockItem = {
 type SlideItem = {
 	id?: number;
 	titolo?: string;
+	titolo_en?: string;
 	sottotitolo?: string;
+	sottotitolo_en?: string;
 	label?: string;
+	label_en?: string;
 	href?: string;
-	immagine?: string;
+	immagine?: string | { id?: string | null } | null;
+	video_sfondo?: string | { id?: string | null } | null;
 };
 
 type SliderItem = {
@@ -39,6 +48,7 @@ type SliderBlockItem = {
 type TitleBlockItem = {
 	id: number;
 	title?: string;
+	title_en?: string;
 };
 
 type PageRef = {
@@ -49,6 +59,7 @@ type PageRef = {
 type SingleCardItem = {
 	id?: number;
 	titolo_card?: string;
+	titolo_card_en?: string;
 	immagine?: string;
 	href?: string;
 	link?: PageRef | number | null;
@@ -71,7 +82,9 @@ type EditorEntry = {
 
 type Page = {
 	title?: string;
+	title_en?: string;
 	description?: string;
+	description_en?: string;
 	Titolo?: string;
 	Sottotitolo?: string;
 	contenuto?: string;
@@ -85,8 +98,6 @@ interface Props {
 	notFoundTitle?: string;
 	notFoundMessage?: string;
 	showHeader?: boolean;
-	homeSliderAutoplay?: boolean;
-	homeSliderAutoplayDelay?: number;
 }
 
 const {
@@ -94,13 +105,12 @@ const {
 	notFoundTitle = 'Pagina non trovata',
 	notFoundMessage = 'La pagina richiesta non esiste.',
 	showHeader = true,
-	homeSliderAutoplay = false,
-	homeSliderAutoplayDelay = 3000,
 } = Astro.props;
+const currentLocale = getLocaleFromPath(Astro.url?.pathname ?? '/');
 
 const blocks = Array.isArray(page?.editor) ? page.editor : [];
-const pageTitle = page?.title || page?.Titolo || '';
-const pageDescription = page?.description || '';
+const pageTitle = localizedField(page as any, 'title', currentLocale) || page?.Titolo || '';
+const pageDescription = localizedField(page as any, 'description', currentLocale) || '';
 const showPageHeader = page ? showHeader && !page.hide_page_header : false;
 const pageHeaderImage = page?.featured_image ? resolveImageSrc(page.featured_image) : '';
 
@@ -141,7 +151,7 @@ function normalizeSlides(input: SliderItem | number | null | undefined) {
 		? (rawSlides as any).data
 		: [];
 	return slidesArray
-		.map((slide) => {
+		.map((slide: any) => {
 			if (!slide) return null;
 			if ('item' in slide && typeof slide.item === 'object') return slide.item;
 			if ('titolo' in slide || 'sottotitolo' in slide || 'immagine' in slide) {
@@ -149,7 +159,7 @@ function normalizeSlides(input: SliderItem | number | null | undefined) {
 			}
 			return null;
 		})
-		.filter((slide): slide is SlideItem => Boolean(slide));
+		.filter((slide: SlideItem | null): slide is SlideItem => Boolean(slide));
 }
 
 function normalizeCards(input: CardRelation[] | SingleCardItem[] | undefined) {
@@ -210,13 +220,14 @@ function getBlockItemId(block: EditorEntry) {
 			switch (collection) {
 				case 'hero_block': {
 					const hero = block.item as HeroBlockItem;
-					renderedBlock = (
-						<HeroBlock
-							titolo={hero.titolo}
-							sottotitolo={hero.sottotitolo}
-							paragrafo={hero.paragrafo}
+						renderedBlock = (
+							<HeroBlock
+								item={String(hero.id ?? '')}
+								titolo={localizedField(hero as any, 'titolo', currentLocale)}
+							sottotitolo={localizedField(hero as any, 'sottotitolo', currentLocale)}
+							paragrafo={localizedField(hero as any, 'paragrafo', currentLocale)}
 							href={hero.href}
-							label={hero.label}
+							label={localizedField(hero as any, 'label', currentLocale)}
 							immagine={hero.immagine}
 							inverti={hero.inverti}
 							background_color={hero.background_color}
@@ -226,7 +237,7 @@ function getBlockItemId(block: EditorEntry) {
 				}
 				case 'title_block': {
 					const title = block.item as TitleBlockItem;
-					renderedBlock = <TitleBlock item={String(title.id ?? '')} titolo={title.title} />;
+						renderedBlock = <TitleBlock item={String(title.id ?? '')} titolo={localizedField(title as any, 'title', currentLocale)} />;
 					break;
 				}
 				case 'slider_block': {
@@ -238,9 +249,12 @@ function getBlockItemId(block: EditorEntry) {
 					);
 					renderedBlock = (
 						<SliderBlock
-							slides={slides}
-							autoplay={homeSliderAutoplay}
-							autoplayDelay={homeSliderAutoplayDelay}
+							slides={slides.map((slide: SlideItem) => ({
+								...slide,
+								titolo: localizedField(slide as any, 'titolo', currentLocale) || slide.titolo,
+								sottotitolo: localizedField(slide as any, 'sottotitolo', currentLocale) || slide.sottotitolo,
+								label: localizedField(slide as any, 'label', currentLocale) || slide.label,
+							}))}
 						/>
 					);
 					break;
@@ -248,7 +262,10 @@ function getBlockItemId(block: EditorEntry) {
 				case 'cards_block': {
 					const cardsBlock = block.item as CardsBlockItem;
 					const cards = normalizeCards(cardsBlock.card);
-					renderedBlock = <CardsBlock titolo={cardsBlock.titolo} card={cards} />;
+						renderedBlock = <CardsBlock titolo={localizedField(cardsBlock as any, 'titolo', currentLocale)} card={cards.map((card) => ({
+							...card,
+							titolo_card: localizedField(card as any, 'titolo_card', currentLocale) || card.titolo_card,
+						}))} />;
 					break;
 				}
 				default:
@@ -273,22 +290,3 @@ function getBlockItemId(block: EditorEntry) {
 		<p>{notFoundMessage}</p>
 	</>
 )}
-
-<style>
-	@media (max-width: 640px) {
-		.content_block:not(.content_block_slider_block) {
-			padding-left: 20px;
-			padding-right: 20px;
-		}
-
-		#block-hero_block-11 {
-			padding-left: 0;
-			padding-right: 0;
-		}
-
-		#block-hero_block-19 {
-			padding-left: 0;
-			padding-right: 0;
-		}
-	}
-</style>

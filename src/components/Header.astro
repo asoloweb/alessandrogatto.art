@@ -1,11 +1,14 @@
 ---
 
-import { DIRECTUS_URL, directusItemsUrl } from '../lib/directus';
+import { DIRECTUS_URL, directusFetch, directusItemsUrl } from '../lib/directus';
+import { englishPathFromItalian, englishSlugFromItalian, getLocaleFromPath, italianPathFromEnglish, localizedField, withLocalePath } from '../lib/i18n';
 
 interface MenuItem {
 	id?: number | string;
 	label?: string;
+	label_en?: string;
 	custom_href?: string;
+	custom_href_en?: string;
 	pages?: { pages_id?: PageItem | number | string }[] | PageItem[];
 }
 
@@ -19,7 +22,9 @@ interface Menu {
 interface PageItem {
 	id?: number;
 	slug?: string;
+	slug_en?: string;
 	title?: string;
+	title_en?: string;
 }
 
 interface Options {
@@ -28,15 +33,27 @@ interface Options {
 
 let logoLightSrc = import.meta.env.PUBLIC_LOGO_LIGHT || '/favicon.svg';
 const currentPath = Astro.url?.pathname ?? '/';
-const logoAlt = 'Stevanin - riaffilatura, rigenerazione e produzione utensili CNC di precisione';
-const logoTitle = 'Stevanin utensili CNC per industria metalmeccanica';
+const currentLocale = getLocaleFromPath(currentPath);
+const currentItalianPath = withLocalePath(currentPath, 'it');
+const currentEnglishPath = currentLocale === 'it' ? englishPathFromItalian(currentItalianPath) : currentItalianPath;
+const italianPath = currentLocale === 'en' ? italianPathFromEnglish(currentItalianPath) : currentItalianPath;
+const englishPath = withLocalePath(currentEnglishPath, 'en');
 
 let menuItems: MenuItem[] = [];
+const fallbackMenuItems: MenuItem[] = [
+	{ label: 'HOME', label_en: 'HOME', custom_href: '/', custom_href_en: '/' },
+	{ label: 'CHI SONO', label_en: 'ABOUT', custom_href: '/chi-sono-filosofia', custom_href_en: '/about-philosophy' },
+	{ label: 'RICONOSCIMENTI', label_en: 'AWARDS', custom_href: '/riconoscimenti', custom_href_en: '/awards' },
+	{ label: 'PORTFOLIO', label_en: 'PORTFOLIO', custom_href: '/portfolio', custom_href_en: '/portfolio' },
+	{ label: 'EVENTI', label_en: 'EVENTS', custom_href: '/eventi', custom_href_en: '/events' },
+	{ label: 'COLLEZIONE', label_en: 'COLLECTION', custom_href: '/collezione', custom_href_en: '/collection' },
+	{ label: 'CONTATTI', label_en: 'CONTACTS', custom_href: '/contatti', custom_href_en: '/contacts' },
+];
 
 try {
 	const optionsUrl = directusItemsUrl('options');
 	optionsUrl.searchParams.set('fields', 'logo_light');
-	const optionsResponse = await fetch(optionsUrl);
+	const optionsResponse = await directusFetch(optionsUrl);
 	if (optionsResponse.ok) {
 		const optionsPayload = await optionsResponse.json();
 		const options =
@@ -52,28 +69,33 @@ try {
 	url.searchParams.set('filter[slug][_eq]', 'menu-principale');
 	url.searchParams.set(
 		'fields',
-		'menu_items.menu_items_id.id,menu_items.menu_items_id.label,menu_items.menu_items_id.custom_href,menu_items.menu_items_id.pages.pages_id.id,menu_items.menu_items_id.pages.pages_id.slug,menu_items.menu_items_id.pages.pages_id.title'
+		'menu_items.menu_items_id.id,menu_items.menu_items_id.label,menu_items.menu_items_id.label_en,menu_items.menu_items_id.custom_href,menu_items.menu_items_id.custom_href_en,menu_items.menu_items_id.pages.pages_id.id,menu_items.menu_items_id.pages.pages_id.slug,menu_items.menu_items_id.pages.pages_id.slug_en,menu_items.menu_items_id.pages.pages_id.title,menu_items.menu_items_id.pages.pages_id.title_en'
 	);
-	const response = await fetch(url);
+	const response = await directusFetch(url);
 	if (!response.ok) {
-		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-	}
-	const data = await response.json();
-	const menu: Menu | undefined = (data.data || [])[0];
-	const rawItems = Array.isArray(menu?.menu_items) ? menu.menu_items : [];
-	const itemObjects = rawItems
-		.map((item) => {
-			if (!item || typeof item !== 'object') return null;
-			if ('menu_items_id' in item && item.menu_items_id && typeof item.menu_items_id === 'object') {
-				return item.menu_items_id as MenuItem;
-			}
-			return item as MenuItem;
-		})
-		.filter((item): item is MenuItem => Boolean(item));
+		menuItems = fallbackMenuItems;
+		if (response.status !== 401 && response.status !== 403) {
+			console.warn(`[Directus] Header menu unavailable (${response.status}), using fallback menu.`);
+		}
+	} else {
+		const data = await response.json();
+		const menu: Menu | undefined = (data.data || [])[0];
+		const rawItems = Array.isArray(menu?.menu_items) ? menu.menu_items : [];
+		const itemObjects = rawItems
+			.map((item) => {
+				if (!item || typeof item !== 'object') return null;
+				if ('menu_items_id' in item && item.menu_items_id && typeof item.menu_items_id === 'object') {
+					return item.menu_items_id as MenuItem;
+				}
+				return item as MenuItem;
+			})
+			.filter((item): item is MenuItem => Boolean(item));
 
-	menuItems = itemObjects;
+		menuItems = itemObjects.length ? itemObjects : fallbackMenuItems;
+	}
 } catch (error) {
-	console.error('Error fetching menu from Directus:', error);
+	menuItems = fallbackMenuItems;
+	console.warn('Error fetching menu from Directus, using fallback menu.', error);
 }
 
 function resolveImageSrc(value: string) {
@@ -106,10 +128,21 @@ function getItemPage(item: MenuItem): PageItem | null {
 }
 
 function getItemHref(item: MenuItem) {
-	if (item.custom_href) return item.custom_href;
+	const customHref = currentLocale === 'en' ? item.custom_href_en || item.custom_href : item.custom_href;
+	if (customHref) {
+		if (customHref.startsWith('http://') || customHref.startsWith('https://') || customHref.startsWith('#')) {
+			return customHref;
+		}
+		const localizedHref = currentLocale === 'en' ? englishPathFromItalian(customHref) : customHref;
+		return withLocalePath(localizedHref, currentLocale);
+	}
 	const page = getItemPage(item);
-	if (!page?.slug || page.slug === 'home') return '/';
-	return `/${page.slug}`;
+	const pageSlug =
+		currentLocale === 'en'
+			? page?.slug_en || englishSlugFromItalian(page?.slug || '')
+			: page?.slug;
+	if (!pageSlug || pageSlug === 'home') return withLocalePath('/', currentLocale);
+	return withLocalePath(`/${pageSlug}`, currentLocale);
 }
 
 function normalizePath(path: string) {
@@ -134,18 +167,29 @@ function isCurrentMenuItem(href: string) {
 
 function getItemTitle(item: MenuItem, index: number) {
 	return (
-		item.label ||
-		getItemPage(item)?.title ||
+		localizedField(item, 'label', currentLocale) ||
+		localizedField(getItemPage(item), 'title', currentLocale) ||
 		`Link ${index + 1}`
 	);
 }
 ---
 
 <header class="site-header" data-aos="fade-down" data-aos-duration="1000">
+	<div class="site-topbar">
+		<div class="site-topbar-inner">
+			<span>{currentLocale === 'en' ? 'Contemporary art and bespoke projects' : 'Arte contemporanea e progetti su misura'}</span>
+			<div class="site-language-switch" aria-label="Selettore lingua">
+				<a href={italianPath} class={currentLocale === 'it' ? 'active' : ''}>🇮🇹 IT</a>
+				<a href={englishPath} class={currentLocale === 'en' ? 'active' : ''}>🇬🇧 EN</a>
+			</div>
+		</div>
+	</div>
 	<nav aria-label="Menu principale">
 		<div>
 			<a href="/">
-				<img class="MenuLogo" src={logoLightSrc} alt={logoAlt} title={logoTitle} />
+				<span class="logo-signature" aria-hidden="true">
+					<img class="MenuLogo" src={logoLightSrc} alt="Logo" />
+				</span>
 			</a>
 		</div>
 		<div class="MenuItemsContainer">
@@ -174,26 +218,12 @@ function getItemTitle(item: MenuItem, index: number) {
 	const button = document.querySelector('.hamburger_button');
 	const menu = document.querySelector('.MenuItemsContainer');
 	const header = document.querySelector('.site-header');
-	const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 	if (!button || !menu || !header) return;
-
-	const setBrowserBarColor = (color) => {
-		if (!(themeColorMeta instanceof HTMLMetaElement)) return;
-		themeColorMeta.setAttribute('content', color);
-	};
 
 	button.addEventListener('click', () => {
 		const isOpen = menu.classList.toggle('is-open');
 		button.classList.toggle('is-active', isOpen);
 		button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-		if (isOpen) {
-			header.dataset.menuForcedFixed = 'true';
-			setBrowserBarColor('#000000');
-			setFixed(true);
-			return;
-		}
-		delete header.dataset.menuForcedFixed;
-		updateFixedState();
 	});
 
 	const setFixed = (isFixed) => {
@@ -211,11 +241,8 @@ function getItemTitle(item: MenuItem, index: number) {
 	};
 
 	const updateFixedState = () => {
-		const isFixed = header.dataset.menuForcedFixed === 'true' || window.scrollY > 300;
+		const isFixed = window.scrollY > 300;
 		setFixed(isFixed);
-		if (isFixed) {
-			setBrowserBarColor('#000000');
-		}
 	};
 
 	window.addEventListener(

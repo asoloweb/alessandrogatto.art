@@ -1,6 +1,7 @@
 ---
-import { directusAssetUrl, directusItemsUrl } from '../lib/directus';
+import { directusAssetUrl, directusFetch, directusItemsUrl } from '../lib/directus';
 import { slugifyNewsTitle } from '../lib/news-slug';
+import { getLocaleFromPath, withLocalePath } from '../lib/i18n';
 
 interface NewsItem {
 	id?: number;
@@ -9,7 +10,6 @@ interface NewsItem {
 	label_link?: string;
 	link?: string;
 	immagine_copertina?: string;
-	video?: string;
 	date_created?: string;
 }
 
@@ -20,6 +20,8 @@ interface Props {
 }
 
 const { titolo = '', items = [], layout = 'slider' } = Astro.props;
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
+const eventsBasePath = locale === 'en' ? '/events' : '/eventi';
 
 const sliderId = `news-slider-${Math.random().toString(36).slice(2)}`;
 
@@ -34,7 +36,6 @@ function normalizeNews(input: unknown): NewsItem[] {
 				'label_link' in entry ||
 				'link' in entry ||
 				'immagine_copertina' in entry ||
-				'video' in entry ||
 				'date_created' in entry
 			) {
 				return entry as NewsItem;
@@ -49,11 +50,11 @@ async function fetchNewsItems(): Promise<NewsItem[]> {
 		const url = directusItemsUrl('News');
 		url.searchParams.set(
 			'fields',
-			'id,titolo,sottotitolo,label_link,link,immagine_copertina,video,status,sort,date_created'
+			'id,titolo,sottotitolo,label_link,link,immagine_copertina,status,sort,date_created'
 		);
 		url.searchParams.set('sort', '-sort,-date_created');
 		url.searchParams.set('filter[status][_eq]', 'published');
-		const response = await fetch(url);
+		const response = await directusFetch(url);
 		if (!response.ok) return [];
 		const payload = await response.json();
 		return normalizeNews(payload?.data);
@@ -74,6 +75,7 @@ function resolveImageSrc(value: string | undefined) {
 		height: 675,
 		quality: 72,
 		format: 'webp',
+		fit: 'cover',
 	});
 }
 
@@ -90,14 +92,6 @@ function formatNewsDate(value: string | undefined) {
 	if (parts.length < 3) return formatted;
 	parts[1] = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
 	return parts.join(' ');
-}
-
-function getNewsImageMeta(news: NewsItem) {
-  const topic = news.titolo?.trim() || 'News utensili CNC';
-  return {
-    alt: `${topic} - servizi di riaffilatura, rigenerazione e produzione utensili CNC`,
-    title: `${topic} | precisione e continuita produttiva`
-  };
 }
 
 function buildNewsSlugMap(entries: NewsItem[]) {
@@ -129,18 +123,21 @@ const newsSlugMap = buildNewsSlugMap(newsItems);
 					<div class="news_block_grid">
 						{newsItems.map((news) => {
 							const newsSlug = typeof news.id === 'number' ? newsSlugMap.get(news.id) || '' : '';
-							const href = newsSlug ? `/news/${newsSlug}` : news.id ? `/news/${news.id}` : news.link || '';
+							const href = newsSlug
+								? withLocalePath(`${eventsBasePath}/${newsSlug}`, locale)
+								: news.id
+								? withLocalePath(`${eventsBasePath}/${news.id}`, locale)
+								: news.link || '';
 						const hasLabelLink = Boolean(news.label_link?.trim());
 						const Tag = href ? 'a' : 'div';
 						const imageSrc = resolveImageSrc(news.immagine_copertina);
-						const imageMeta = getNewsImageMeta(news);
-						const formattedDate = formatNewsDate(news.data_news || news.date_created);
+						const formattedDate = formatNewsDate(news.date_created);
 
 						return (
 							<Tag class="news_card" href={href || undefined}>
 								{imageSrc && (
 									<div class="news_card_media">
-										<img src={imageSrc} alt={imageMeta.alt} title={imageMeta.title} loading="lazy" />
+										<img src={imageSrc} alt={news.titolo || ''} loading="lazy" />
 									</div>
 								)}
 								<div class="news_card_container">
@@ -158,18 +155,21 @@ const newsSlugMap = buildNewsSlugMap(newsItems);
 						<div class="swiper-wrapper">
 							{newsItems.map((news) => {
 								const newsSlug = typeof news.id === 'number' ? newsSlugMap.get(news.id) || '' : '';
-								const href = newsSlug ? `/news/${newsSlug}` : news.id ? `/news/${news.id}` : news.link || '';
+								const href = newsSlug
+									? withLocalePath(`${eventsBasePath}/${newsSlug}`, locale)
+									: news.id
+									? withLocalePath(`${eventsBasePath}/${news.id}`, locale)
+									: news.link || '';
 								const hasLabelLink = Boolean(news.label_link?.trim());
 								const Tag = href ? 'a' : 'div';
 								const imageSrc = resolveImageSrc(news.immagine_copertina);
-								const imageMeta = getNewsImageMeta(news);
-								const formattedDate = formatNewsDate(news.data_news || news.date_created);
+								const formattedDate = formatNewsDate(news.date_created);
 
 								return (
 								<Tag class="swiper-slide news_card" href={href || undefined}>
 									{imageSrc && (
 										<div class="news_card_media">
-											<img src={imageSrc} alt={imageMeta.alt} title={imageMeta.title} loading="lazy" />
+											<img src={imageSrc} alt={news.titolo || ''} loading="lazy" />
 										</div>
 									)}
 									<div class="news_card_container">
@@ -214,16 +214,17 @@ const newsSlugMap = buildNewsSlugMap(newsItems);
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 24px;
-		align-items: stretch;
 	}
 
 	.news_card {
-		background: #fff;
-		overflow: hidden;
-		border-radius: 8px;
 		display: flex;
 		flex-direction: column;
-		min-height: 420px;
+		gap: 12px;
+		background: var(--bianco);
+		border-radius: 18px;
+		color: var(--nero);
+		transition: transform 200ms ease, box-shadow 200ms ease;
+		min-height: 100%;
 	}
 
 	a.news_card:hover {
@@ -272,24 +273,14 @@ const newsSlugMap = buildNewsSlugMap(newsItems);
 		margin-top: auto;
 		align-self: flex-start;
 		font-weight: bold;
-		color:var(--blu);
+		color:var(--primary);
 		margin-top:20px;
 		display: block;
 	}
 
 	.news_card_container {
-		padding: 20px;
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.news_block :global(.swiper-wrapper) {
-		align-items: stretch;
-	}
-
-	.news_block :global(.swiper-slide) {
-		height: auto;
+		padding: 50px 20px;
+		height:190px;
 	}
 
 	.news_block :global(.swiper-pagination) {
@@ -297,12 +288,12 @@ const newsSlugMap = buildNewsSlugMap(newsItems);
 	}
 
 	.news_block :global(.swiper-pagination-bullet) {
-		background: var(--blu);
+		background: var(--primary);
 		opacity: 0.45;
 	}
 
 	.news_block :global(.swiper-pagination-bullet-active) {
-		background: var(--blu);
+		background: var(--primary);
 		opacity: 1;
 	}
 

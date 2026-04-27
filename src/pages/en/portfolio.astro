@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageContent from '../../components/PageContent.astro';
+import PortfolioBlock from '../../components/portfolio_block.astro';
+import { fetchPublishedPageBySlug } from '../../lib/pages';
+
+const page = await fetchPublishedPageBySlug('portfolio', 'portfolio');
+---
+
+<BaseLayout title={page?.title_en || page?.title || 'Portfolio'} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
+	<PageContent page={page as any} notFoundTitle="Portfolio" notFoundMessage="" />
+	<PortfolioBlock titolo="Portfolio" mode="filterable-projects" />
+</BaseLayout>

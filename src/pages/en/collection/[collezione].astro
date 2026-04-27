@@ -1,0 +1,53 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PortfolioBlock from '../../../components/portfolio_block.astro';
+import { directusFetch, directusItemsUrl } from '../../../lib/directus';
+import { slugifyLabel } from '../../../lib/slug';
+
+type Category = {
+	id?: number;
+	status?: string;
+	titolo_categoria?: string;
+	titolo_categoria_en?: string;
+	descrizione_categoria?: string;
+	descrizione_categoria_en?: string;
+};
+
+export async function getStaticPaths() {
+	const url = directusItemsUrl('portfolio_categorie');
+	url.searchParams.set('fields', 'id,status,titolo_categoria,titolo_categoria_en,descrizione_categoria,descrizione_categoria_en');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	const response = await directusFetch(url);
+	const payload = await response.json();
+	const categories = Array.isArray(payload?.data) ? (payload.data as Category[]) : [];
+
+	return categories
+		.filter((category) => typeof category.id === 'number')
+		.map((category) => ({
+			params: { collezione: slugifyLabel(category.titolo_categoria_en || category.titolo_categoria) || String(category.id) },
+			props: { category },
+		}));
+}
+
+const { category } = Astro.props as { category: Category };
+const title = category?.titolo_categoria_en || category?.titolo_categoria || 'Collection';
+const description = category?.descrizione_categoria_en || category?.descrizione_categoria || '';
+const categorySlug = slugifyLabel(title) || String(category?.id || '');
+---
+
+<BaseLayout title={title} seoDescription={description}>
+	<section class="collection_header">
+		<div class="collection_header_inner">
+			<h1>{title}</h1>
+			{description && <p>{description}</p>}
+		</div>
+	</section>
+	<PortfolioBlock mode="projects" selectedCollectionSlug={categorySlug} />
+</BaseLayout>
+
+<style>
+	.collection_header { padding: 170px 20px 20px; }
+	.collection_header_inner { max-width: var(--max-width); margin: 0 auto; }
+	.collection_header h1 { margin: 0 0 10px; font-size: clamp(40px, 6vw, 72px); line-height: 1; color: var(--bianco); }
+	.collection_header p { margin: 0; max-width: 720px; color: rgba(255, 255, 255, .85); font-size: 18px; line-height: 1.45; }
+</style>

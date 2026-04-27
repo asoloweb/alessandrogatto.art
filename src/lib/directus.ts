@@ -1,9 +1,55 @@
 const rawDirectusUrl =
 	import.meta.env.PUBLIC_DIRECTUS_URL ||
 	import.meta.env.DIRECTUS_URL ||
-	'https://admin.stevanin.it';
+	'https://alessandrogatto.asoloweb.it';
 
 export const DIRECTUS_URL = rawDirectusUrl.replace(/\/+$/, '');
+export const DEFAULT_BLOCK_ASSET_ID = '302e561b-5beb-4538-9baa-6af46d15e726';
+const DIRECTUS_TOKEN =
+	import.meta.env.DIRECTUS_TOKEN ||
+	import.meta.env.PUBLIC_DIRECTUS_TOKEN ||
+	'jdGPU_ZQb9y01O12loR5L_-fJGn2Pry1';
+const DIRECTUS_ASSET_TOKEN =
+	import.meta.env.PUBLIC_DIRECTUS_ASSET_TOKEN ||
+	import.meta.env.PUBLIC_DIRECTUS_TOKEN ||
+	'jdGPU_ZQb9y01O12loR5L_-fJGn2Pry1';
+
+export async function directusFetch(input: any, init: any = {}) {
+	const headers = new Headers(init.headers || undefined);
+	if (DIRECTUS_TOKEN && !headers.has('Authorization')) {
+		headers.set('Authorization', `Bearer ${DIRECTUS_TOKEN}`);
+	}
+
+	let timeoutController: AbortController | null = null;
+	let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+	let signal = init.signal;
+	if (!signal) {
+		timeoutController = new AbortController();
+		timeoutHandle = setTimeout(() => timeoutController?.abort(), 3500);
+		signal = timeoutController.signal;
+	}
+
+	try {
+		const response = await fetch(input, {
+			...init,
+			headers,
+			signal,
+		});
+		return response;
+	} catch (error) {
+		const method = (init?.method || 'GET').toUpperCase();
+		if (method === 'GET' || method === 'HEAD') {
+			console.warn('[Directus] Request failed, using empty fallback payload.');
+			return new Response(JSON.stringify({ data: [] }), {
+				status: 503,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
+		throw error;
+	} finally {
+		if (timeoutHandle) clearTimeout(timeoutHandle);
+	}
+}
 
 export function directusItemsUrl(path: string) {
 	const cleanedPath = path.replace(/^\/+/, '');
@@ -15,36 +61,21 @@ type DirectusAssetOptions = {
 	height?: number;
 	quality?: number;
 	format?: 'webp' | 'avif' | 'jpg' | 'jpeg' | 'png';
+	fit?: 'cover' | 'contain' | 'inside' | 'outside';
 };
 
 export function directusAssetUrl(value: string | undefined, options: DirectusAssetOptions = {}) {
 	if (!value) return '';
 
 	const applyTransforms = (url: URL) => {
-		const { width, height, quality, format } = options;
-
-		const hasWidth = typeof width === 'number' && Number.isFinite(width) && width > 0;
-		const hasHeight = typeof height === 'number' && Number.isFinite(height) && height > 0;
-
-		if (hasWidth) {
-			url.searchParams.set('width', String(Math.round(width)));
+		if (options.width) url.searchParams.set('width', String(options.width));
+		if (options.height) url.searchParams.set('height', String(options.height));
+		if (options.quality) url.searchParams.set('quality', String(options.quality));
+		if (options.format) url.searchParams.set('format', options.format);
+		if (options.fit) url.searchParams.set('fit', options.fit);
+		if (DIRECTUS_ASSET_TOKEN && !url.searchParams.has('access_token')) {
+			url.searchParams.set('access_token', DIRECTUS_ASSET_TOKEN);
 		}
-
-		// Avoid visual crops: when both dimensions are provided, prefer width-only
-		// so Directus keeps the original aspect ratio.
-		if (hasHeight && !hasWidth) {
-			url.searchParams.set('height', String(Math.round(height)));
-		}
-
-		if (typeof quality === 'number' && Number.isFinite(quality) && quality > 0) {
-			const clampedQuality = Math.min(100, Math.max(1, Math.round(quality)));
-			url.searchParams.set('quality', String(clampedQuality));
-		}
-
-		if (format) {
-			url.searchParams.set('format', format);
-		}
-
 		return url.toString();
 	};
 
@@ -69,4 +100,8 @@ export function directusAssetUrl(value: string | undefined, options: DirectusAss
 	}
 
 	return applyTransforms(new URL(`/assets/${value}`, DIRECTUS_URL));
+}
+
+export function directusBlockAssetUrl(value: string | undefined | null, options: DirectusAssetOptions = {}) {
+	return directusAssetUrl(value || DEFAULT_BLOCK_ASSET_ID, options);
 }

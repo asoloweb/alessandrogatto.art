@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageContent from '../../components/PageContent.astro';
+import { fetchPublishedPageBySlug } from '../../lib/pages';
+
+const page = await fetchPublishedPageBySlug('chi-sono-filosofia', 'about-philosophy');
+---
+
+<BaseLayout title={page?.title_en || page?.title || 'About / Philosophy'} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
+	<PageContent page={page as any} notFoundTitle="Page not found" notFoundMessage="Content unavailable." />
+</BaseLayout>

@@ -1,0 +1,25 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageContent from '../../components/PageContent.astro';
+import PortfolioBlock from '../../components/portfolio_block.astro';
+import { directusFetch, directusItemsUrl } from '../../lib/directus';
+
+async function fetchCollectionPage() {
+	const url = directusItemsUrl('pages');
+	url.searchParams.set('fields', '*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.*');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('filter[slug][_eq]', 'collezione');
+	url.searchParams.set('limit', '1');
+	const response = await directusFetch(url);
+	if (!response.ok) return null;
+	const payload = await response.json();
+	return Array.isArray(payload?.data) ? payload.data[0] ?? null : payload?.data ?? null;
+}
+
+const page = await fetchCollectionPage();
+---
+
+<BaseLayout title={page?.title || 'Collezione'} seoTitle={page?.seo_title} seoDescription={page?.seo_desc}>
+	{page && <PageContent page={page as any} />}
+	<PortfolioBlock titolo="Collezioni" mode="collections" />
+</BaseLayout>
