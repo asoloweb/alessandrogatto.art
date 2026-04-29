@@ -147,10 +147,11 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 
 <style>
 	.contact_form {
-		background: var(--bianco);
-		border-radius: 24px;
+		background: #0b0b0b;
+		border: 1px solid #2b2b2b;
+		border-radius: 30px;
 		padding: 28px;
-		color: var(--nero);
+		color: var(--bianco);
 	}
 
 	.contact_form_title {
@@ -173,10 +174,17 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 
 	.contact_form_field input,
 	.contact_form_field textarea {
-		border: 1px solid #d9d9d9;
+		border: 1px solid #3a3a3a;
 		border-radius: 12px;
 		padding: 12px 14px;
 		font: inherit;
+		background: #121212;
+		color: #f3f3f3;
+	}
+
+	.contact_form_field input::placeholder,
+	.contact_form_field textarea::placeholder {
+		color: #8f8f8f;
 	}
 
 	.contact_form_field textarea {
@@ -198,7 +206,7 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 	}
 
 	.contact_form_privacy a {
-		color: var(--primary);
+		color: #f3f3f3;
 		text-decoration: underline;
 	}
 
@@ -207,8 +215,8 @@ const webhookUrl = import.meta.env.PUBLIC_DIRECTUS_WEBHOOK_RICHIESTE
 		border: 0;
 		border-radius: 999px;
 		padding: 12px 18px;
-		background: var(--primary);
-		color: var(--bianco);
+		background: #ffffff;
+		color: #0b0b0b;
 		font-family: var(--font-heading);
 		font-size: 16px;
 		cursor: pointer;

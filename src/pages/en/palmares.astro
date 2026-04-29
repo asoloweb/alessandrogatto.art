@@ -1,0 +1,109 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { fetchPublishedPageBySlug } from '../../lib/pages';
+import { fetchPalmares } from '../../lib/palmares';
+import { directusAssetUrl } from '../../lib/directus';
+import { getLocaleFromPath, localizedField } from '../../lib/i18n';
+
+const page = await fetchPublishedPageBySlug('palmares', 'palmares');
+const entries = await fetchPalmares();
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
+const pageTitle = localizedField(page as any, 'title', locale) || 'Palmares';
+const pageDescription =
+	localizedField(page as any, 'description', locale) ||
+	'Awards, mentions and recognitions in national and international competitions.';
+const showPageHeader = page && !(page as any).hide_page_header;
+const pageHeaderImage = page?.featured_image
+	? directusAssetUrl(page.featured_image, { width: 1920, quality: 80, format: 'webp' })
+	: '';
+---
+
+<BaseLayout title={pageTitle} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
+	{showPageHeader && (
+		<div class="page_header" style={pageHeaderImage ? `background-image: url('${pageHeaderImage}')` : undefined}>
+			<div class="page_header_inner">
+				<h1 data-aos="fade-up" data-aos-duration="1500">{pageTitle}</h1>
+				{pageDescription && <p data-aos="fade-up" data-aos-duration="1800">{pageDescription}</p>}
+			</div>
+		</div>
+	)}
+
+	<section class="palmares_section">
+		<div class="palmares_inner">
+			{entries.map((entry) => (
+				<article class="palmares_row">
+					<div class="palmares_year">{entry.data || '-'}</div>
+					<div class="palmares_content">
+						<h3 class="palmares_title">{entry.titolo}</h3>
+						{entry.risultato && <p class="palmares_result">{entry.risultato}</p>}
+					</div>
+				</article>
+			))}
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.palmares_section {
+		padding: 56px 20px 100px;
+	}
+
+	.palmares_inner {
+		max-width: var(--max-width);
+		margin: 0 auto;
+		display: grid;
+		gap: 16px;
+	}
+
+	.palmares_row {
+		display: grid;
+		grid-template-columns: 100px minmax(0, 1fr);
+		gap: 22px;
+		padding: 22px 24px;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		align-items: start;
+		transition: all .28s ease-out;
+	}
+
+	.palmares_row:hover {
+		transform: translateY(-2px);
+		border-color: #4e4e4e;
+	}
+
+	.palmares_year {
+		font-size: 13px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--theme--primary);
+		padding-top: 3px;
+	}
+
+	.palmares_content {
+		display: grid;
+		gap: 7px;
+	}
+
+	.palmares_title {
+		margin: 0;
+		font-size: clamp(19px, 1.8vw, 24px);
+		line-height: 1.24;
+		font-weight: 500;
+		color: var(--bianco);
+	}
+
+	.palmares_result {
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.5;
+		color: var(--text-muted);
+	}
+
+	@media (max-width: 700px) {
+		.palmares_row {
+			grid-template-columns: 1fr;
+			gap: 10px;
+		}
+	}
+</style>

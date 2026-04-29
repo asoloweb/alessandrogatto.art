@@ -9,6 +9,7 @@ interface Props {
 	href?: string;
 	label?: string;
 	immagine?: string;
+	slides?: { immagine?: string | { id?: string | null } | null; titolo?: string }[];
 	inverti?: boolean;
 	background_color?: string;
 }
@@ -21,12 +22,23 @@ const {
 	href = '', 
 	label = '', 
 	immagine = '',
+	slides = [],
 	inverti = false,
 	background_color = ''
 } = Astro.props;
 
-function resolveImageSrc(value: string) {
-	return directusAssetUrl(value, {
+const hasSlider = Array.isArray(slides) && slides.length > 0;
+const heroSliderId = `hero-slider-${item || Math.random().toString(36).slice(2)}`;
+
+function resolveImageId(value: string | { id?: string | null } | null | undefined) {
+	if (!value) return undefined;
+	if (typeof value === 'string') return value;
+	if (typeof value === 'object' && typeof value.id === 'string') return value.id;
+	return undefined;
+}
+
+function resolveImageSrc(value: string | { id?: string | null } | null | undefined) {
+	return directusAssetUrl(resolveImageId(value), {
 		width: 1100,
 		height: 900,
 		quality: 74,
@@ -42,19 +54,43 @@ function resolveImageSrc(value: string) {
 	class={`hero_block${inverti ? ' hero_block_inverted' : ''}`}
 	style={background_color ? `background-color: ${background_color};` : undefined}
 >
-	{immagine && (
+	{(immagine || hasSlider) && (
 		<div class="colonna colonna_immagine">
-			<img
-				class="hero_image"
-				data-aos="image-rotate"
-				data-aos-duration="1000"
-				data-aos-anchor-placement="top-bottom"
-				src={resolveImageSrc(immagine)}
-				alt={sottotitolo || titolo}
-				loading="eager"
-				fetchpriority="high"
-				decoding="async"
-			/>
+			{hasSlider ? (
+				<div class="hero_block_slider swiper" id={heroSliderId}>
+					<div class="swiper-wrapper">
+						{slides.map((slide, index) => {
+							const imageSrc = resolveImageSrc(slide.immagine);
+							if (!imageSrc) return null;
+							return (
+								<div class="swiper-slide hero_image_slide">
+									<img
+										class="hero_image"
+										src={imageSrc}
+										alt={slide.titolo || sottotitolo || titolo}
+										loading={index === 0 ? 'eager' : 'lazy'}
+										fetchpriority={index === 0 ? 'high' : 'auto'}
+										decoding="async"
+									/>
+								</div>
+							);
+						})}
+					</div>
+					{slides.length > 1 && <div class="swiper-pagination"></div>}
+				</div>
+			) : (
+				<img
+					class="hero_image"
+					data-aos="image-rotate"
+					data-aos-duration="1000"
+					data-aos-anchor-placement="top-bottom"
+					src={resolveImageSrc(immagine)}
+					alt={sottotitolo || titolo}
+					loading="eager"
+					fetchpriority="high"
+					decoding="async"
+				/>
+			)}
 			<div class="hero_decor" data-aos="rotate-cw" data-aos-duration="800" data-aos-delay="200"></div>
 		</div>
 	)}
@@ -74,7 +110,7 @@ function resolveImageSrc(value: string) {
 	.hero_block {
 		color:#fff;
 		display: flex;
-		border-radius: 30px;
+		border-radius: 0;
 		max-width: var(--max-width);
 		margin: auto;
 		margin-bottom: 80px;
@@ -105,6 +141,16 @@ function resolveImageSrc(value: string) {
 		align-items: center;
 		justify-content: flex-start;
 		position: relative;
+		overflow: hidden;
+	}
+
+	.hero_block_slider {
+		width: 100%;
+		height: 100%;
+	}
+
+	.hero_image_slide {
+		height: 100%;
 	}
 
 	.hero_block_inverted .colonna_immagine {
@@ -146,6 +192,19 @@ function resolveImageSrc(value: string) {
 		height: 100%;
 		object-position: center;
 		border-radius: 0;
+	}
+
+	:global(.hero_block_slider .swiper-pagination) {
+		bottom: 14px !important;
+	}
+
+	:global(.hero_block_slider .swiper-pagination-bullet) {
+		background: rgba(255, 255, 255, 0.5);
+		opacity: 1;
+	}
+
+	:global(.hero_block_slider .swiper-pagination-bullet-active) {
+		background: #fff;
 	}
 	
 	.hero_image[data-aos="image-rotate"] {

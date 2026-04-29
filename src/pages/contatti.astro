@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageContent from '../components/PageContent.astro';
-import ContactForm from '../components/ContactForm.astro';
 import { DIRECTUS_URL, directusFetch, directusItemsUrl } from '../lib/directus';
 
 type Page = {
@@ -65,39 +64,10 @@ const showPageHeader = page ? !page.hide_page_header : false;
 		</div>
 	)}
 
-	<div class="contatti_layout">
-		<div class="contatti_column contatti_content">
-			<PageContent
-				page={page}
-				showHeader={false}
-				notFoundTitle="Pagina contatti non trovata"
-				notFoundMessage="La pagina contatti richiesta non esiste."
-			/>
-		</div>
-		<div class="contatti_column contatti_form">
-			<ContactForm />
-		</div>
-	</div>
+	<PageContent
+		page={page}
+		showHeader={false}
+		notFoundTitle="Pagina contatti non trovata"
+		notFoundMessage="La pagina contatti richiesta non esiste."
+	/>
 </BaseLayout>
-
-<style>
-	.contatti_layout {
-		max-width: var(--max-width);
-		margin: 10px auto 80px;
-		padding: 0 20px;
-		display: grid;
-		grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-		gap: 28px;
-		align-items: start;
-	}
-
-	.contatti_column {
-		min-width: 0;
-	}
-
-	@media (max-width: 980px) {
-		.contatti_layout {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>

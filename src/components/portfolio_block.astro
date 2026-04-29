@@ -26,9 +26,10 @@ interface Props {
 	titolo?: string;
 	mode?: 'collections' | 'projects' | 'filterable-projects';
 	selectedCollectionSlug?: string;
+	useLightbox?: boolean;
 }
 
-const { titolo = '', mode = 'collections', selectedCollectionSlug = '' } = Astro.props as Props;
+const { titolo = '', mode = 'collections', selectedCollectionSlug = '', useLightbox = false } = Astro.props as Props;
 const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
 const isEnglish = locale === 'en';
 const componentId = `portfolio-${Math.random().toString(36).slice(2)}`;
@@ -85,6 +86,9 @@ function categoryForProject(project: Project) {
 }
 
 const collections = Array.from(categoryById.values());
+const collectionsWithProjects = collections.filter((collection) =>
+	projects.some((project) => categoryForProject(project)?.slug === collection.slug)
+);
 const normalizedSelectedCollectionSlug = selectedCollectionSlug.trim();
 const visibleProjects =
 	mode === 'projects' && normalizedSelectedCollectionSlug
@@ -114,48 +118,171 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 				{mode === 'filterable-projects' && (
 					<nav class="portfolio_filters" aria-label={isEnglish ? 'Portfolio categories' : 'Categorie portfolio'}>
 						<button class="portfolio_filter is-active" type="button" data-category="all">{allLabel}</button>
-						{collections.map((collection) => (
+						{collectionsWithProjects.map((collection) => (
 							<button class="portfolio_filter" type="button" data-category={collection.slug}>{collection.title}</button>
 						))}
 					</nav>
 				)}
 
-				<div class="portfolio_projects_grid">
+				<div class="portfolio_projects_grid js-masonry-grid">
+					<div class="grid-sizer"></div>
+					<div class="gutter-sizer"></div>
 					{visibleProjects.map((project) => {
 						const title = getProductTitle(project as any) || (isEnglish ? 'Project' : 'Progetto');
-						const subtitle = project.descrizione || '';
 						const slug = typeof project.id === 'number' ? productSlugMap.get(project.id) || String(project.id) : '';
 						const category = categoryForProject(project);
 						const image = project.foto_principale;
 						return (
-							<a class="portfolio_project_card" href={withLocalePath(`${projectBasePath}/${slug}`, locale)} data-category={category?.slug || 'uncategorized'}>
+							<button
+								type="button"
+								class="portfolio_project_card grid-item"
+								data-category={category?.slug || 'uncategorized'}
+								data-title={title}
+								data-year={project.anno ? String(project.anno) : ''}
+								data-description={project.descrizione || ''}
+								data-image={image ? directusAssetUrl(image, { width: 1600, quality: 82, format: 'webp' }) : ''}
+								data-detail-url={withLocalePath(`${projectBasePath}/${slug}`, locale)}
+							>
 								{image && (
 									<div class="portfolio_project_media">
-										<img src={directusAssetUrl(image, { width: 900, height: 680, fit: 'cover', format: 'webp', quality: 74 })} alt={title} loading="lazy" />
+										<img src={directusAssetUrl(image, { width: 900, format: 'webp', quality: 74 })} alt={title} loading="lazy" />
 									</div>
 								)}
-								<div class="portfolio_project_content">
-									{category?.title && <p class="portfolio_project_meta">{category.title}</p>}
-									<h3>{title}</h3>
-									{project.anno && <p class="portfolio_project_year">{project.anno}</p>}
-									{subtitle && <p>{subtitle}</p>}
-								</div>
-							</a>
+							</button>
 						);
 					})}
 				</div>
+
+				{useLightbox && (
+					<div class="portfolio_lightbox" data-open="false" aria-hidden="true">
+						<div class="portfolio_lightbox_backdrop" data-close-lightbox></div>
+						<div class="portfolio_lightbox_panel" role="dialog" aria-modal="true" aria-label={isEnglish ? 'Project preview' : 'Anteprima progetto'}>
+							<button type="button" class="portfolio_lightbox_close" aria-label={isEnglish ? 'Close' : 'Chiudi'} data-close-lightbox>×</button>
+							<div class="portfolio_lightbox_media"></div>
+							<div class="portfolio_lightbox_content">
+								<h3 class="portfolio_lightbox_title"></h3>
+								<p class="portfolio_lightbox_year"></p>
+								<div class="portfolio_lightbox_description"></div>
+							</div>
+						</div>
+					</div>
+				)}
 			</>
 		)}
 	</div>
 </section>
 
 {mode === 'filterable-projects' && (
-	<script is:inline define:vars={{ componentId }}>
+	<script is:inline define:vars={{ componentId, useLightbox }}>
 		(() => {
 			const root = document.getElementById(componentId);
 			if (!root) return;
 			const filters = Array.from(root.querySelectorAll('.portfolio_filter'));
 			const cards = Array.from(root.querySelectorAll('.portfolio_project_card'));
+			const grid = root.querySelector('.js-masonry-grid');
+			let isotope = null;
+
+			const loadScript = (src) =>
+				new Promise((resolve, reject) => {
+					const existing = document.querySelector(`script[src="${src}"]`);
+					if (existing) {
+						existing.addEventListener('load', () => resolve(true), { once: true });
+						if (existing.dataset.loaded === 'true') resolve(true);
+						return;
+					}
+					const script = document.createElement('script');
+					script.src = src;
+					script.async = true;
+					script.addEventListener('load', () => {
+						script.dataset.loaded = 'true';
+						resolve(true);
+					});
+					script.addEventListener('error', reject);
+					document.head.appendChild(script);
+				});
+
+			const initIsotope = async () => {
+				if (!grid) return;
+				try {
+					await loadScript('https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.min.js');
+					await loadScript('https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js');
+					if (!window.Isotope || !window.imagesLoaded) return;
+					isotope = new window.Isotope(grid, {
+						itemSelector: '.grid-item',
+						layoutMode: 'masonry',
+						columnWidth: '.grid-sizer',
+						gutter: '.gutter-sizer',
+						percentPosition: true,
+						transitionDuration: '0.25s'
+					});
+					window.imagesLoaded(grid).on('progress', () => isotope && isotope.layout());
+				} catch (_) {
+					// Fallback: keep static grid if CDN is unavailable.
+				}
+			};
+
+			const lightbox = useLightbox ? root.querySelector('.portfolio_lightbox') : null;
+			const lightboxMedia = lightbox ? lightbox.querySelector('.portfolio_lightbox_media') : null;
+			const lightboxTitle = lightbox ? lightbox.querySelector('.portfolio_lightbox_title') : null;
+			const lightboxYear = lightbox ? lightbox.querySelector('.portfolio_lightbox_year') : null;
+			const lightboxDescription = lightbox ? lightbox.querySelector('.portfolio_lightbox_description') : null;
+
+			if (lightbox && lightbox.parentElement !== document.body) {
+				document.body.appendChild(lightbox);
+			}
+
+			const openLightbox = (card) => {
+				if (!lightbox || !lightboxMedia || !lightboxTitle || !lightboxYear || !lightboxDescription) return;
+				const title = card.getAttribute('data-title') || '';
+				const year = card.getAttribute('data-year') || '';
+				const description = card.getAttribute('data-description') || '';
+				const image = card.getAttribute('data-image') || '';
+
+				lightboxTitle.textContent = title;
+				lightboxYear.textContent = year;
+				lightboxYear.style.display = year ? '' : 'none';
+				lightboxDescription.textContent = description;
+				lightboxMedia.innerHTML = image ? `<img src="${image}" alt="${title}">` : '';
+				lightbox.setAttribute('data-open', 'true');
+				lightbox.setAttribute('aria-hidden', 'false');
+				document.body.style.overflow = 'hidden';
+			};
+
+			const closeLightbox = () => {
+				if (!lightbox) return;
+				lightbox.setAttribute('data-open', 'false');
+				lightbox.setAttribute('aria-hidden', 'true');
+				document.body.style.overflow = '';
+			};
+
+			if (lightbox) {
+				root.querySelectorAll('[data-close-lightbox]').forEach((el) => {
+					el.addEventListener('click', closeLightbox);
+				});
+				const panel = lightbox.querySelector('.portfolio_lightbox_panel');
+				if (panel) {
+					panel.addEventListener('click', (event) => {
+						const target = event.target;
+						if (!(target instanceof Element)) return;
+						if (target.closest('.portfolio_lightbox_media img')) return;
+						closeLightbox();
+					});
+				}
+				document.addEventListener('keydown', (event) => {
+					if (event.key === 'Escape') closeLightbox();
+				});
+			}
+
+			cards.forEach((card) => {
+				card.addEventListener('click', () => {
+					if (!useLightbox) {
+						const detailUrl = card.getAttribute('data-detail-url');
+						if (detailUrl) window.location.href = detailUrl;
+						return;
+					}
+					openLightbox(card);
+				});
+			});
 
 			const setCategory = (value) => {
 				filters.forEach((filter) => {
@@ -163,11 +290,16 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 					filter.classList.toggle('is-active', isActive);
 				});
 
-				cards.forEach((card) => {
-					const category = card.getAttribute('data-category') || 'uncategorized';
-					const visible = value === 'all' || category === value;
-					card.style.display = visible ? '' : 'none';
-				});
+				if (isotope) {
+					const filterValue = value === 'all' ? '*' : `[data-category="${value}"]`;
+					isotope.arrange({ filter: filterValue });
+				} else {
+					cards.forEach((card) => {
+						const category = card.getAttribute('data-category') || 'uncategorized';
+						const visible = value === 'all' || category === value;
+						card.style.display = visible ? '' : 'none';
+					});
+				}
 			};
 
 			filters.forEach((filter) => {
@@ -177,38 +309,61 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 				});
 			});
 
-			setCategory('all');
+			initIsotope().then(() => setCategory('all'));
 		})();
 	</script>
 )}
 
 <style>
-	.portfolio_block { padding: 20px 20px 70px; }
+	.portfolio_block { padding: 28px 20px 90px; }
 	.portfolio_block_inner { max-width: var(--max-width); margin: 0 auto; }
 	.portfolio_block_title { margin: 0 0 22px; color: var(--bianco); font-size: clamp(38px, 7vw, 100px); font-weight: 500; letter-spacing: -0.01em; }
-	.portfolio_collections_grid,
-	.portfolio_projects_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+	.portfolio_collections_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+	.portfolio_projects_grid { width: 100%; }
+	.grid-sizer,
+	.gutter-sizer { width: 4.8%; }
+	.grid-sizer { width: 30.1%; }
 	.portfolio_collection_card,
-	.portfolio_project_card { background: #111; color: #f3f3f3; border-radius: 0; overflow: hidden; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; border: 1px solid #2d2d2d; }
+	.portfolio_project_card { background: transparent; color: #f3f3f3; border-radius: 0; overflow: hidden; text-decoration: none; transition: transform .25s ease, opacity .25s ease; border: 0; box-shadow: none; }
+	.portfolio_project_card { display: block; width: 30.1%; margin-bottom: 40px; }
+	.portfolio_project_card { padding: 0; cursor: pointer; text-align: left; }
 	a.portfolio_collection_card:hover,
-	a.portfolio_project_card:hover { transform: translateY(-4px); box-shadow: 0 20px 36px rgba(0, 0, 0, .36); border-color: #4d4d4d; }
-	.portfolio_project_media { aspect-ratio: 4 / 3; background: #e9e9e9; }
-	.portfolio_project_media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.portfolio_project_card:hover { transform: translateY(-2px); opacity: 0.92; }
+	.portfolio_project_media { background: transparent; }
+	.portfolio_project_media img { width: 100%; height: auto; display: block; }
 	.portfolio_collection_card h3,
 	.portfolio_project_content h3 { margin: 16px 16px 8px; font-size: clamp(22px, 2.4vw, 36px); line-height: 1.08; font-weight: 500; }
 	.portfolio_collection_card p,
 	.portfolio_project_content p { margin: 0 16px 18px; line-height: 1.45; color: #c8c8c8; }
 	.portfolio_project_meta { font-size: 12px; letter-spacing: .4px; text-transform: uppercase; font-weight: 700; margin-top: 18px; }
 	.portfolio_project_year { font-weight: 700; }
-	.portfolio_filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 22px; justify-content: center; }
-	.portfolio_filter { border: 1px solid rgba(255, 255, 255, .5); background: transparent; color: var(--bianco); padding: 10px 14px; border-radius: 999px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+	.portfolio_filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 34px; justify-content: center; }
+	.portfolio_filter { border: 1px solid rgba(255, 255, 255, .5); background: transparent; color: var(--bianco); padding: 15px 25px; border-radius: 999px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; margin-bottom: 40px; }
 	.portfolio_filter.is-active { background: var(--primary); border-color: var(--primary); color: var(--nero); }
+	.portfolio_lightbox { position: fixed; inset: 0; z-index: 1000; display: none; padding: 20px; width: 100vw; height: 100vh; align-items: center; justify-content: center; }
+	.portfolio_lightbox[data-open="true"] { display: flex; }
+	.portfolio_lightbox_backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .72); }
+	.portfolio_lightbox_panel { position: relative; z-index: 1; width: min(1040px, calc(100vw - 40px)); max-height: calc(100vh - 40px); margin: 0; overflow: auto; background: #111; border: 1px solid #2d2d2d; }
+	.portfolio_lightbox_close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border: 0; background: rgba(0,0,0,.4); color: #fff; font-size: 24px; cursor: pointer; }
+	.portfolio_lightbox_media img { width: 100%; height: auto; display: block; }
+	.portfolio_lightbox_content { padding: 22px 24px 28px; }
+	.portfolio_lightbox_title { margin: 0; font-size: clamp(16px, 1.4vw, 22px); line-height: 1.2; }
+	.portfolio_lightbox_year { margin: 10px 0 0; color: var(--theme--primary); font-weight: 700; }
+	.portfolio_lightbox_description { margin-top: 12px; color: #c8c8c8; line-height: 1.55; white-space: pre-wrap; }
 	@media (max-width: 980px) {
-		.portfolio_collections_grid,
-		.portfolio_projects_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.grid-sizer,
+		.portfolio_project_card { width: 47%; }
+		.gutter-sizer { width: 6%; }
+		.portfolio_project_card { margin-bottom: 30px; }
+		.portfolio_collections_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	}
 	@media (max-width: 640px) {
-		.portfolio_collections_grid,
-		.portfolio_projects_grid { grid-template-columns: 1fr; }
+		.portfolio_collections_grid { grid-template-columns: 1fr; }
+		.grid-sizer,
+		.portfolio_project_card { width: 100%; }
+		.gutter-sizer { width: 0; }
+		.portfolio_project_card { margin-bottom: 22px; }
+		.portfolio_lightbox { padding: 12px; }
+		.portfolio_lightbox_panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
 	}
 </style>

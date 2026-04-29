@@ -162,7 +162,7 @@ a {
 .site-header .logo-signature .MenuLogo {
   clip-path: inset(0 100% 0 0);
   filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
-  animation: logoDrawReveal 1.9s steps(65, end) 180ms forwards;
+  animation: logoDrawReveal 3.2s steps(65, end) 500ms forwards;
 }
 
 .site-header .logo-signature::after {
@@ -172,11 +172,11 @@ a {
   bottom: 6%;
   left: -6px;
   width: 3px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.7);
+  background: transparent;
+  box-shadow: none;
   border-radius: 999px;
   opacity: 0;
-  animation: logoDrawPen 1.95s ease-out 180ms forwards;
+  animation: logoDrawPen 3.2s ease-out 500ms forwards;
 }
 
 @keyframes logoDrawReveal {

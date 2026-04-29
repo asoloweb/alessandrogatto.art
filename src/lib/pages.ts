@@ -1,7 +1,7 @@
 import { directusFetch, directusItemsUrl } from './directus';
 
 const PAGE_FIELDS =
-	'*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.*';
+	'*,editor.item.*,editor.item.immagini.directus_files_id,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.slider.slides.item:slides.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.*';
 
 export async function fetchPublishedPageBySlug(slug: string, slugEn?: string) {
 	try {

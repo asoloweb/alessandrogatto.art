@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.Swiper) return;
-  const sliders = document.querySelectorAll('.slider_block.swiper, .news_block.swiper');
+  const sliders = document.querySelectorAll('.slider_block.swiper, .news_block.swiper, .hero_block_slider.swiper');
   sliders.forEach((el) => {
     if (el.getAttribute('data-swiper-initialized') === 'true') return;
     const slides = el.querySelectorAll('.swiper-slide');
@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
       watchOverflow: false,
     };
     const isNewsSlider = el.classList.contains('news_block');
+    const isHeroBlockSlider = el.classList.contains('hero_block_slider');
 
     if (isNewsSlider) {
       options.slidesPerView = 3;
@@ -28,13 +29,17 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
+    if (isHeroBlockSlider) {
+      options.autoplay = { delay: 4200, disableOnInteraction: false };
+    }
+
     if (paginationEl) {
       options.pagination = { el: paginationEl, clickable: true };
     }
     if (nextEl && prevEl) {
       options.navigation = { nextEl, prevEl };
     }
-    if (el.getAttribute('data-swiper-autoplay') === 'true') {
+    if (!isHeroBlockSlider && el.getAttribute('data-swiper-autoplay') === 'true') {
       options.autoplay = { delay: 4500, disableOnInteraction: false };
     }
 

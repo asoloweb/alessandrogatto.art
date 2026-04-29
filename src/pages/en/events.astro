@@ -4,6 +4,7 @@ import { fetchPublishedPageBySlug } from '../../lib/pages';
 import { fetchEventi, eventoCoverUrl, formatEventoDateRange } from '../../lib/eventi';
 import { directusAssetUrl } from '../../lib/directus';
 import { getLocaleFromPath, localizedField } from '../../lib/i18n';
+import { slugifyNewsTitle } from '../../lib/news-slug';
 
 const page = await fetchPublishedPageBySlug('eventi', 'events');
 const eventi = await fetchEventi();
@@ -34,24 +35,25 @@ const pageHeaderImage = page?.featured_image ? directusAssetUrl(page.featured_im
 					const descrizione = isEnglish && e.descrizione_en ? e.descrizione_en : e.descrizione;
 					const coverUrl = eventoCoverUrl(e.foto_copertina);
 					const dateStr = formatEventoDateRange(e.data_inizio, e.data_fine, locale);
+					const slug = slugifyNewsTitle(titolo || '') || String(e.id);
+					const eventHref = e.link_esterno || `/en/events/${slug}`;
+					const isExternal = Boolean(e.link_esterno);
 					
 					return (
 						<article class="evento_card">
 							{coverUrl && (
 								<div class="evento_media">
-									<img src={coverUrl} alt={titolo || ''} loading="lazy" />
+									<a href={eventHref} target={isExternal ? '_blank' : undefined} rel={isExternal ? 'noopener noreferrer' : undefined}>
+										<img src={coverUrl} alt={titolo || ''} loading="lazy" />
+									</a>
 								</div>
 							)}
 							<div class="evento_content">
 								{dateStr && <time class="evento_date">{dateStr}</time>}
-								<h3 class="evento_titolo">{titolo}</h3>
+								<h3 class="evento_titolo"><a href={eventHref} target={isExternal ? '_blank' : undefined} rel={isExternal ? 'noopener noreferrer' : undefined}>{titolo}</a></h3>
 								{e.location && <p class="evento_location">{e.location}</p>}
 								{descrizione && <p class="evento_desc">{descrizione}</p>}
-								{e.link_esterno && (
-									<a href={e.link_esterno} target="_blank" rel="noopener noreferrer" class="evento_link">
-										{isEnglish ? 'View more' : 'Approfondisci'}
-									</a>
-								)}
+								<a href={eventHref} target={isExternal ? '_blank' : undefined} rel={isExternal ? 'noopener noreferrer' : undefined} class="evento_link">{isExternal ? 'View more' : 'Read event'}</a>
 							</div>
 						</article>
 					);

@@ -151,11 +151,11 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 		}
 
 		.single_slide h1 {
-		font-size: clamp(46px, 8vw, 128px);
+		font-size: clamp(46px, 5vw, 117px);
 		line-height: 0.95;
 		text-shadow: 0 20px 38px rgba(0, 0, 0, 0.45);
 		max-width: min(14ch, 100%);
-		margin: 0;
+		margin: 0 0 40px;
 		font-weight: 500;
 		letter-spacing: -0.015em;
 		}
@@ -200,6 +200,10 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 			flex-direction: column;
 			justify-content: flex-end;
 			height: 100%;
+		}
+
+		.swiper-slide-container h2 {
+			margin-bottom: 40px;
 		}
 
 	.single_slide {

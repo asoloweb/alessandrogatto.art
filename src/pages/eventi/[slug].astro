@@ -1,77 +1,62 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { directusAssetUrl, directusFetch, directusItemsUrl } from '../../lib/directus';
+import { directusFetch, directusItemsUrl } from '../../lib/directus';
+import { eventoCoverUrl, formatEventoDateRange } from '../../lib/eventi';
 import { slugifyNewsTitle } from '../../lib/news-slug';
 
-type EventItem = {
-	id?: number;
-	status?: string;
-	titolo?: string;
-	sottotitolo?: string;
-	editor?: string;
-	immagine_copertina?: string;
-	date_created?: string;
-	link?: string;
-	label_link?: string;
+type Evento = {
+	id: number;
+	status: string;
+	titolo_evento: string;
+	titolo_evento_en?: string;
+	descrizione?: string;
+	descrizione_en?: string;
+	data_inizio?: string | null;
+	data_fine?: string | null;
+	foto_copertina?: string | null;
+	location?: string | null;
+	link_esterno?: string | null;
 };
 
-function resolveImageSrc(value: string | undefined) {
-	return directusAssetUrl(value, {
-		width: 1600,
-		height: 1000,
-		quality: 76,
-		format: 'webp',
-		fit: 'cover',
+export async function getStaticPaths() {
+	const url = directusItemsUrl('eventi');
+	url.searchParams.set('fields', 'id,status,titolo_evento,titolo_evento_en,descrizione,descrizione_en,data_inizio,data_fine,foto_copertina,location,link_esterno');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('sort', '-data_inizio');
+	const response = await directusFetch(url);
+	const payload = await response.json();
+	const items = Array.isArray(payload?.data) ? (payload.data as Evento[]) : [];
+	const used = new Set<string>();
+
+	return items.map((event) => {
+		const base = slugifyNewsTitle(event.titolo_evento || '') || String(event.id);
+		let slug = base;
+		if (used.has(slug)) slug = `${base}-${event.id}`;
+		used.add(slug);
+		return { params: { slug }, props: { event } };
 	});
 }
 
-function formatDate(value: string | undefined) {
-	if (!value) return '';
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return '';
-	return new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-}
-
-export async function getStaticPaths() {
-	const url = directusItemsUrl('News');
-	url.searchParams.set('fields', 'id,status,titolo,sottotitolo,editor,immagine_copertina,date_created,link,label_link');
-	url.searchParams.set('filter[status][_eq]', 'published');
-	const response = await directusFetch(url);
-	const payload = await response.json();
-	const items = Array.isArray(payload?.data) ? (payload.data as EventItem[]) : [];
-	const usedSlugs = new Set<string>();
-
-	return items
-		.filter((item) => typeof item?.id === 'number')
-		.map((item) => {
-			const baseSlug = slugifyNewsTitle(item.titolo) || String(item.id);
-			let resolvedSlug = baseSlug;
-			if (usedSlugs.has(resolvedSlug)) resolvedSlug = `${baseSlug}-${item.id}`;
-			usedSlugs.add(resolvedSlug);
-			return { params: { slug: resolvedSlug }, props: { event: item } };
-		});
-}
-
-const { event } = Astro.props as { event: EventItem };
-const imageSrc = resolveImageSrc(event?.immagine_copertina);
-const dateLabel = formatDate(event?.date_created);
+const { event } = Astro.props as { event: Evento };
+const imageSrc = eventoCoverUrl(event.foto_copertina || null);
+const dateLabel = formatEventoDateRange(event.data_inizio || null, event.data_fine || null, 'it');
 ---
 
-<BaseLayout title={event?.titolo || 'Evento'}>
+<BaseLayout title={event.titolo_evento || 'Evento'}>
 	<article class="event_single">
 		<div class="event_single_inner">
 			{dateLabel && <p class="event_single_date">{dateLabel}</p>}
-			{event?.titolo && <h1 class="event_single_title">{event.titolo}</h1>}
-			{event?.sottotitolo && <p class="event_single_subtitle">{event.sottotitolo}</p>}
+			<h1 class="event_single_title">{event.titolo_evento}</h1>
+			{event.location && <p class="event_single_location">{event.location}</p>}
 			{imageSrc && (
 				<div class="event_single_media">
-					<img src={imageSrc} alt={event?.titolo || ''} loading="eager" />
+					<img src={imageSrc} alt={event.titolo_evento || ''} loading="eager" />
 				</div>
 			)}
-			{event?.editor && <div class="event_single_editor" set:html={event.editor} />}
-			{event?.link && (
-				<a class="MainButton event_single_link" href={event.link}>
-					{event?.label_link || 'Apri link'}
+			{event.descrizione && <div class="event_single_editor" set:html={event.descrizione} />}
+			{event.link_esterno && (
+				<a class="MainButton event_single_link" href={event.link_esterno} target="_blank" rel="noopener noreferrer">
+					Approfondisci
 				</a>
 			)}
 		</div>
@@ -83,8 +68,8 @@ const dateLabel = formatDate(event?.date_created);
 	.event_single_inner { max-width: var(--max-width); margin: 0 auto; }
 	.event_single_date { margin: 0 0 10px; font-size: 14px; font-weight: 600; opacity: 0.8; }
 	.event_single_title { margin: 0; font-size: clamp(34px, 5vw, 54px); line-height: 1.05; }
-	.event_single_subtitle { margin: 14px 0 24px; font-size: 21px; line-height: 1.35; max-width: 900px; }
-	.event_single_media { margin: 0 0 30px; border-radius: 22px; overflow: hidden; }
+	.event_single_location { margin: 14px 0 24px; font-size: 16px; color: var(--text-muted); }
+	.event_single_media { margin: 0 0 30px; overflow: hidden; border: 1px solid var(--border); }
 	.event_single_media img { width: 100%; height: auto; display: block; }
 	.event_single_editor { font-size: 18px; line-height: 1.65; }
 	.event_single_link { margin-top: 30px; display: inline-flex; }

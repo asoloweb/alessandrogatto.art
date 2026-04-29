@@ -18,6 +18,7 @@ type HeroBlockItem = {
 	label_en?: string;
 	href?: string;
 	immagine?: string;
+	immagini?: { directus_files_id?: string | { id?: string | null } | null }[];
 	inverti?: boolean;
 	background_color?: string;
 };
@@ -220,15 +221,18 @@ function getBlockItemId(block: EditorEntry) {
 			switch (collection) {
 				case 'hero_block': {
 					const hero = block.item as HeroBlockItem;
-						renderedBlock = (
-							<HeroBlock
-								item={String(hero.id ?? '')}
-								titolo={localizedField(hero as any, 'titolo', currentLocale)}
+							renderedBlock = (
+								<HeroBlock
+									item={String(hero.id ?? '')}
+									titolo={localizedField(hero as any, 'titolo', currentLocale)}
 							sottotitolo={localizedField(hero as any, 'sottotitolo', currentLocale)}
 							paragrafo={localizedField(hero as any, 'paragrafo', currentLocale)}
 							href={hero.href}
 							label={localizedField(hero as any, 'label', currentLocale)}
 							immagine={hero.immagine}
+							slides={(Array.isArray(hero.immagini) ? hero.immagini : []).map((entry) => ({
+								immagine: entry?.directus_files_id,
+							}))}
 							inverti={hero.inverti}
 							background_color={hero.background_color}
 						/>

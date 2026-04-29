@@ -2,8 +2,6 @@ import { directusFetch, directusItemsUrl } from './directus';
 
 export interface Riconoscimento {
 	id: number;
-	status: string;
-	sort: number;
 	titolo: string;
 	titolo_en: string;
 	descrizione: string;
@@ -12,22 +10,30 @@ export interface Riconoscimento {
 	data: number;
 }
 
-const RICONOSCIMENTI_FIELDS = 'id,status,sort,titolo,titolo_en,descrizione,descrizione_en,link_esterno,data';
+const PALMARES_FIELDS = 'id,titolo,risultato,data';
 
 export async function fetchRiconoscimenti(): Promise<Riconoscimento[]> {
 	try {
-		const url = directusItemsUrl('riconoscimenti');
-		url.searchParams.set('fields', RICONOSCIMENTI_FIELDS);
-		url.searchParams.set('filter[status][_eq]', 'published');
+		const url = directusItemsUrl('palmares');
+		url.searchParams.set('fields', PALMARES_FIELDS);
 		url.searchParams.set('sort', '-data');
 		url.searchParams.set('limit', '-1');
 
 		const response = await directusFetch(url);
 		if (!response.ok) return [];
 		const payload = await response.json();
-		return Array.isArray(payload?.data) ? (payload.data as Riconoscimento[]) : [];
+		if (!Array.isArray(payload?.data)) return [];
+		return payload.data.map((item: any) => ({
+			id: item.id,
+			titolo: item.titolo || '',
+			titolo_en: item.titolo || '',
+			descrizione: item.risultato || '',
+			descrizione_en: item.risultato || '',
+			link_esterno: null,
+			data: item.data,
+		})) as Riconoscimento[];
 	} catch (error) {
-		console.warn('[Directus] Unable to fetch riconoscimenti:', error);
+		console.warn('[Directus] Unable to fetch palmares:', error);
 		return [];
 	}
 }
