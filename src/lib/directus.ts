@@ -1,7 +1,7 @@
 const rawDirectusUrl =
 	import.meta.env.PUBLIC_DIRECTUS_URL ||
 	import.meta.env.DIRECTUS_URL ||
-	'https://alessandrogatto.asoloweb.it';
+	'https://admin.alessandrogatto.art';
 
 export const DIRECTUS_URL = rawDirectusUrl.replace(/\/+$/, '');
 export const DEFAULT_BLOCK_ASSET_ID = '302e561b-5beb-4538-9baa-6af46d15e726';
