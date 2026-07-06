@@ -43,12 +43,31 @@ let menuItems: MenuItem[] = [];
 const fallbackMenuItems: MenuItem[] = [
 	{ label: 'HOME', label_en: 'HOME', custom_href: '/', custom_href_en: '/' },
 	{ label: 'CHI SONO', label_en: 'ABOUT', custom_href: '/chi-sono-filosofia', custom_href_en: '/about-philosophy' },
-	{ label: 'RICONOSCIMENTI', label_en: 'AWARDS', custom_href: '/riconoscimenti', custom_href_en: '/awards' },
 	{ label: 'PORTFOLIO', label_en: 'PORTFOLIO', custom_href: '/portfolio', custom_href_en: '/portfolio' },
+	{ label: 'PALMARES', label_en: 'PALMARES', custom_href: '/palmares', custom_href_en: '/palmares' },
+	{ label: 'RICONOSCIMENTI', label_en: 'AWARDS', custom_href: '/riconoscimenti', custom_href_en: '/awards' },
 	{ label: 'EVENTI', label_en: 'EVENTS', custom_href: '/eventi', custom_href_en: '/events' },
 	{ label: 'COLLEZIONE', label_en: 'COLLECTION', custom_href: '/collezione', custom_href_en: '/collection' },
 	{ label: 'CONTATTI', label_en: 'CONTACTS', custom_href: '/contatti', custom_href_en: '/contacts' },
 ];
+
+function isPalmaresItem(item: MenuItem) {
+	return item.custom_href === '/palmares' || item.custom_href_en === '/palmares' || item.label?.toLowerCase() === 'palmares';
+}
+
+function isPortfolioItem(item: MenuItem) {
+	return item.custom_href === '/portfolio' || item.custom_href_en === '/portfolio' || item.label?.toLowerCase() === 'portfolio';
+}
+
+function normalizeMenuOrder(items: MenuItem[]) {
+	const nextItems = items.filter((item) => !isPalmaresItem(item));
+	const palmaresItem = items.find(isPalmaresItem) || fallbackMenuItems.find(isPalmaresItem);
+	const portfolioIndex = nextItems.findIndex(isPortfolioItem);
+	if (palmaresItem && portfolioIndex >= 0) {
+		nextItems.splice(portfolioIndex + 1, 0, palmaresItem);
+	}
+	return nextItems;
+}
 
 try {
 	const optionsUrl = directusItemsUrl('options');
@@ -97,6 +116,8 @@ try {
 	menuItems = fallbackMenuItems;
 	console.warn('Error fetching menu from Directus, using fallback menu.', error);
 }
+
+menuItems = normalizeMenuOrder(menuItems);
 
 function resolveImageSrc(value: string) {
 	if (!value) return '';
@@ -177,7 +198,6 @@ function getItemTitle(item: MenuItem, index: number) {
 <header class="site-header" data-aos="fade-down" data-aos-duration="1000">
 	<div class="site-topbar">
 		<div class="site-topbar-inner">
-			<span>{currentLocale === 'en' ? 'Contemporary art and bespoke projects' : 'Arte contemporanea e progetti su misura'}</span>
 			<div class="site-language-switch" aria-label="Selettore lingua">
 				<a href={italianPath} class={currentLocale === 'it' ? 'active' : ''}>🇮🇹 IT</a>
 				<a href={englishPath} class={currentLocale === 'en' ? 'active' : ''}>🇬🇧 EN</a>

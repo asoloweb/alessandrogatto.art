@@ -2,8 +2,6 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageContent from '../components/PageContent.astro';
 import { directusFetch, directusItemsUrl } from '../lib/directus';
-import { fetchEventi, eventoCoverUrl, formatEventoDateRange } from '../lib/eventi';
-import { slugifyNewsTitle } from '../lib/news-slug';
 
 type Page = {
 	title?: string;
@@ -31,14 +29,6 @@ async function fetchHomePage() {
 }
 
 const page: Page | null = await fetchHomePage();
-const latestEvent = (await fetchEventi())[0] ?? null;
-const latestEventDate = latestEvent
-	? formatEventoDateRange(latestEvent.data_inizio, latestEvent.data_fine, 'it')
-	: '';
-const latestEventCover = latestEvent ? eventoCoverUrl(latestEvent.foto_copertina) : '';
-const latestEventSlug = latestEvent ? slugifyNewsTitle(latestEvent.titolo_evento || '') || String(latestEvent.id) : '';
-const latestEventHref = latestEvent ? latestEvent.link_esterno || `/eventi/${latestEventSlug}` : '/eventi';
-const latestEventExternal = Boolean(latestEvent?.link_esterno);
 ---
 
 <BaseLayout
@@ -51,114 +41,11 @@ const latestEventExternal = Boolean(latestEvent?.link_esterno);
 		notFoundTitle="Home non trovata"
 		notFoundMessage="La pagina richiesta non esiste."
 	/>
-	{latestEvent && (
-		<section class="home_event_section">
-			<div class="home_event_inner" data-aos="fade-up" data-aos-duration="1200">
-				{latestEventCover && (
-					<div class="home_event_media">
-						<img src={latestEventCover} alt={latestEvent.titolo_evento || ''} loading="lazy" />
-					</div>
-				)}
-				<div class="home_event_content">
-					<p class="home_event_kicker">Ultimo evento</p>
-					<h2 class="home_event_title">{latestEvent.titolo_evento}</h2>
-					{latestEventDate && <p class="home_event_meta">{latestEventDate}</p>}
-					{latestEvent.location && <p class="home_event_meta">{latestEvent.location}</p>}
-					{latestEvent.descrizione && <div class="home_event_desc" set:html={latestEvent.descrizione} />}
-					<a href={latestEventHref} target={latestEventExternal ? '_blank' : undefined} rel={latestEventExternal ? 'noopener noreferrer' : undefined} class="home_event_link">{latestEventExternal ? 'Approfondisci' : "Vai all'evento"}</a>
-				</div>
-			</div>
-		</section>
-	)}
 </BaseLayout>
 
 <style>
 	:global(.slider_block) {
-		margin-bottom: 100px !important;
-	}
-
-	.home_event_section {
-		padding: 0 20px 100px;
-	}
-
-	.home_event_inner {
-		max-width: var(--max-width);
-		margin: 0 auto;
-		padding: 0;
-		border: 1px solid var(--border);
-		background: var(--surface);
-		display: grid;
-		grid-template-columns: 30% 1fr;
-		gap: 0;
-	}
-
-	.home_event_media {
-		min-height: 100%;
-		background: #0a0a0a;
-	}
-
-	.home_event_media img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.home_event_content {
-		padding: 34px 30px;
-		display: grid;
-		gap: 10px;
-	}
-
-	.home_event_kicker {
-		margin: 0;
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--theme--primary);
-	}
-
-	.home_event_title {
-		margin: 0;
-		font-size: clamp(26px, 3vw, 42px);
-		line-height: 1.1;
-		color: var(--bianco);
-	}
-
-	.home_event_meta,
-	.home_event_desc {
-		margin: 0;
-		color: var(--text-muted);
-	}
-
-	.home_event_desc {
-		line-height: 1.6;
-	}
-
-	.home_event_link {
-		margin-top: 8px;
-		justify-self: start;
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		text-decoration: none;
-		color: var(--bianco);
-		border-bottom: 1px solid transparent;
-	}
-
-	.home_event_link:hover {
-		border-color: var(--bianco);
-	}
-
-	@media (max-width: 900px) {
-		.home_event_inner {
-			grid-template-columns: 1fr;
-		}
-
-		.home_event_media img {
-			height: auto;
-		}
+		height: 100vh !important;
+		margin-bottom: 0 !important;
 	}
 </style>

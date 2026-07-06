@@ -2,7 +2,6 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PageContent from '../../components/PageContent.astro';
 import { directusFetch, directusItemsUrl } from '../../lib/directus';
-import { fetchEventi, formatEventoDateRange } from '../../lib/eventi';
 
 type Page = {
   title?: string;
@@ -30,10 +29,6 @@ async function fetchHomePage() {
 }
 
 const page: Page | null = await fetchHomePage();
-const latestEvent = (await fetchEventi())[0] ?? null;
-const latestEventDate = latestEvent
-  ? formatEventoDateRange(latestEvent.data_inizio, latestEvent.data_fine, 'en')
-  : '';
 ---
 
 <BaseLayout
@@ -46,80 +41,11 @@ const latestEventDate = latestEvent
     notFoundTitle="Home not found"
     notFoundMessage="The requested page does not exist."
   />
-  {latestEvent && (
-    <section class="home_event_section">
-      <div class="home_event_inner" data-aos="fade-up" data-aos-duration="1200">
-        <p class="home_event_kicker">Latest event</p>
-        <h2 class="home_event_title">{latestEvent.titolo_evento_en || latestEvent.titolo_evento}</h2>
-        {latestEventDate && <p class="home_event_meta">{latestEventDate}</p>}
-        {latestEvent.location && <p class="home_event_meta">{latestEvent.location}</p>}
-        {(latestEvent.descrizione_en || latestEvent.descrizione) && (
-          <div class="home_event_desc" set:html={latestEvent.descrizione_en || latestEvent.descrizione} />
-        )}
-        <a href="/en/events" class="home_event_link">Go to events</a>
-      </div>
-    </section>
-  )}
 </BaseLayout>
 
 <style>
 	:global(.slider_block) {
-		margin-bottom: 100px !important;
-	}
-
-	.home_event_section {
-		padding: 0 20px 100px;
-	}
-
-	.home_event_inner {
-		max-width: var(--max-width);
-		margin: 0 auto;
-		padding: 34px 30px;
-		border: 1px solid var(--border);
-		background: var(--surface);
-		display: grid;
-		gap: 10px;
-	}
-
-	.home_event_kicker {
-		margin: 0;
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--theme--primary);
-	}
-
-	.home_event_title {
-		margin: 0;
-		font-size: clamp(26px, 3vw, 42px);
-		line-height: 1.1;
-		color: var(--bianco);
-	}
-
-	.home_event_meta,
-	.home_event_desc {
-		margin: 0;
-		color: var(--text-muted);
-	}
-
-	.home_event_desc {
-		line-height: 1.6;
-	}
-
-	.home_event_link {
-		margin-top: 8px;
-		justify-self: start;
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		text-decoration: none;
-		color: var(--bianco);
-		border-bottom: 1px solid transparent;
-	}
-
-	.home_event_link:hover {
-		border-color: var(--bianco);
+		height: 100vh !important;
+		margin-bottom: 0 !important;
 	}
 </style>

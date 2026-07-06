@@ -103,12 +103,6 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 					)}
 					<div class="swiper-slide-container">
 						{slide.titolo && <h1 data-aos="fade-up" data-aos-duration="1500">{slide.titolo}</h1>}
-						{slide.sottotitolo && <h2 data-aos="fade-up" data-aos-duration="1800">{slide.sottotitolo}</h2>}
-						{slide.label && slide.href && (
-							<button data-aos="fade-up" data-aos-duration="2000" class="slider_button MainButton" type="button" data-href={slide.href}>
-								{slide.label}
-							</button>
-						)}
 						{(imageSrc || videoSrc) && <span class="slide_image_sr" aria-hidden="true"></span>}
 					</div>
 				</div>
@@ -155,7 +149,7 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 		line-height: 0.95;
 		text-shadow: 0 20px 38px rgba(0, 0, 0, 0.45);
 		max-width: min(14ch, 100%);
-		margin: 0 0 40px;
+		margin: 0;
 		font-weight: 500;
 		letter-spacing: -0.015em;
 		}
@@ -195,11 +189,13 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 		.swiper-slide-container {
 			margin: 0 auto;
 			width: min(var(--SiteWidth), 100%);
-			padding: 0 24px 60px;
+			padding: clamp(160px, 22vh, 220px) 24px clamp(56px, 10vh, 120px);
 			display: flex;
 			flex-direction: column;
-			justify-content: flex-end;
+			align-items: center;
+			justify-content: center;
 			height: 100%;
+			text-align: center;
 		}
 
 		.swiper-slide-container h2 {
@@ -260,7 +256,7 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 		}
 
 		.swiper-slide-container {
-			padding: 0 18px 44px;
+			padding: 132px 18px 44px;
 		}
 	}
 </style>
