@@ -61,6 +61,7 @@ async function fetchProjects(): Promise<Project[]> {
 const [categories, projects] = await Promise.all([fetchCategories(), fetchProjects()]);
 const productSlugMap = buildProductSlugMap(projects as any);
 const enableMasonry = mode === 'filterable-projects';
+const enableHoverPreview = mode === 'projects';
 
 const categoryById = new Map<number, { title: string; slug: string; description: string }>();
 for (const category of categories) {
@@ -149,11 +150,6 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 										<img src={directusAssetUrl(image)} alt={title} loading="lazy" />
 									</div>
 								)}
-								{image && mode === 'projects' && (
-									<div class="portfolio_hover_preview" aria-hidden="true">
-										<img src={directusAssetUrl(image)} alt="" loading="lazy" />
-									</div>
-								)}
 							</button>
 						);
 					})}
@@ -179,7 +175,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 </section>
 
 {mode !== 'collections' && (
-	<script is:inline define:vars={{ componentId, useLightbox, enableMasonry }}>
+	<script is:inline define:vars={{ componentId, useLightbox, enableMasonry, enableHoverPreview }}>
 		(() => {
 			const root = document.getElementById(componentId);
 			if (!root) return;
@@ -233,9 +229,21 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 			const lightboxTitle = lightbox ? lightbox.querySelector('.portfolio_lightbox_title') : null;
 			const lightboxYear = lightbox ? lightbox.querySelector('.portfolio_lightbox_year') : null;
 			const lightboxDescription = lightbox ? lightbox.querySelector('.portfolio_lightbox_description') : null;
+			let hoverPreview = null;
+			let hoverPreviewImage = null;
 
 			if (lightbox && lightbox.parentElement !== document.body) {
 				document.body.appendChild(lightbox);
+			}
+
+			if (enableHoverPreview) {
+				hoverPreview = document.createElement('div');
+				hoverPreview.className = 'portfolio_hover_preview';
+				hoverPreview.setAttribute('aria-hidden', 'true');
+				hoverPreviewImage = document.createElement('img');
+				hoverPreviewImage.alt = '';
+				hoverPreview.appendChild(hoverPreviewImage);
+				document.body.appendChild(hoverPreview);
 			}
 
 			const openLightbox = (card) => {
@@ -281,6 +289,18 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 			}
 
 			cards.forEach((card) => {
+				if (hoverPreview && hoverPreviewImage) {
+					card.addEventListener('mouseenter', () => {
+						const image = card.getAttribute('data-image') || '';
+						if (!image) return;
+						hoverPreviewImage.src = image;
+						hoverPreview.setAttribute('data-open', 'true');
+					});
+					card.addEventListener('mouseleave', () => {
+						hoverPreview.setAttribute('data-open', 'false');
+					});
+				}
+
 				card.addEventListener('click', () => {
 					if (!useLightbox) {
 						const detailUrl = card.getAttribute('data-detail-url');
@@ -346,12 +366,12 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 	.portfolio_project_media img { width: 100%; height: auto; display: block; }
 	.portfolio_block_projects .portfolio_project_media { width: 100%; height: 100%; }
 	.portfolio_block_projects .portfolio_project_media img { width: 100%; height: 100%; object-fit: cover; transition: opacity .25s ease, transform .35s ease; }
-	.portfolio_hover_preview { position: fixed; inset: 0; z-index: 9999; padding: clamp(24px, 5vw, 72px); display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.5); opacity: 0; transition: opacity .22s ease; }
-	.portfolio_hover_preview img { max-width: min(86vw, 1080px); max-height: 86vh; width: auto; height: auto; display: block; box-shadow: 0 28px 90px rgba(0,0,0,.5); transform: scale(.92); transition: transform .35s ease; }
+	:global(.portfolio_hover_preview) { position: fixed; inset: 0; z-index: 9999; padding: clamp(24px, 5vw, 72px); display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.5); opacity: 0; transition: opacity .22s ease; }
+	:global(.portfolio_hover_preview[data-open="true"]) { opacity: 1; }
+	:global(.portfolio_hover_preview img) { max-width: min(88vw, 1180px); max-height: 88vh; width: auto; height: auto; display: block; box-shadow: 0 28px 90px rgba(0,0,0,.55); transform: scale(.86); transition: transform .36s ease; }
+	:global(.portfolio_hover_preview[data-open="true"] img) { transform: scale(1); }
 	.portfolio_block_projects .portfolio_project_card:hover { z-index: 5; }
 	.portfolio_block_projects .portfolio_project_card:hover .portfolio_project_media img { opacity: .35; transform: scale(.96); }
-	.portfolio_block_projects .portfolio_project_card:hover .portfolio_hover_preview { opacity: 1; }
-	.portfolio_block_projects .portfolio_project_card:hover .portfolio_hover_preview img { transform: scale(1); }
 	.portfolio_collection_card h3,
 	.portfolio_project_content h3 { margin: 16px 16px 8px; font-size: clamp(22px, 2.4vw, 36px); line-height: 1.08; font-weight: 500; }
 	.portfolio_collection_card p,
@@ -375,7 +395,6 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 		.grid-sizer,
 		.portfolio_project_card { width: 47%; }
 		.portfolio_block_projects .portfolio_projects_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-		.portfolio_hover_preview { width: min(78vw, 620px); height: min(58vh, 520px); }
 		.gutter-sizer { width: 6%; }
 		.portfolio_project_card { margin-bottom: 30px; }
 		.portfolio_collections_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -389,6 +408,6 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 		.portfolio_project_card { margin-bottom: 22px; }
 		.portfolio_lightbox { padding: 12px; }
 		.portfolio_lightbox_panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
-		.portfolio_hover_preview { display: none; }
+		:global(.portfolio_hover_preview) { display: none; }
 	}
 </style>
