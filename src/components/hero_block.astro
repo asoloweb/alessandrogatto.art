@@ -12,6 +12,7 @@ interface Props {
 	slides?: { immagine?: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null; titolo?: string }[];
 	inverti?: boolean;
 	background_color?: string;
+	priority?: boolean;
 }
 
 const { 
@@ -24,7 +25,8 @@ const {
 	immagine = null,
 	slides = [],
 	inverti = false,
-	background_color = ''
+	background_color = '',
+	priority = false
 } = Astro.props;
 
 const singleSlideImage = Array.isArray(slides) ? slides.find((slide) => slide?.immagine)?.immagine : undefined;
@@ -58,8 +60,8 @@ function resolveImageSrc(value: string | { id?: string | null; directus_files_id
 				data-aos-anchor-placement="top-bottom"
 				src={resolveImageSrc(resolvedImage)}
 				alt={sottotitolo || titolo}
-				loading="eager"
-				fetchpriority="high"
+				loading={priority ? 'eager' : 'lazy'}
+				fetchpriority={priority ? 'high' : 'auto'}
 				decoding="async"
 			/>
 			<div class="hero_decor" data-aos="rotate-cw" data-aos-duration="800" data-aos-delay="200"></div>
