@@ -21,13 +21,14 @@ export async function getStaticPaths() {
   const url = directusItemsUrl('pages');
   url.searchParams.set(
     'fields',
-    '*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.slider.slides.item:slides.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.id,editor.item.card.single_card_id.link.slug,editor.item.card.single_card_id.link.slug_en,editor.item.card.single_card_id.link.title,editor.item.card.single_card_id.link.title_en'
+    '*,editor.item.*,editor.item.immagini.directus_files_id,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.slider.slides.item:slides.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.id,editor.item.card.single_card_id.link.slug,editor.item.card.single_card_id.link.slug_en,editor.item.card.single_card_id.link.title,editor.item.card.single_card_id.link.title_en'
   );
   const response = await directusFetch(url);
   const data = await response.json();
   const pages = data?.data ?? [];
   const publishedPages = pages.filter((page: Page) => page.status === 'published');
   const allowedSlugs = new Set([
+    'other',
     'privacy-policy',
     'cookie-policy',
   ]);
