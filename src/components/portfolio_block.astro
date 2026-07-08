@@ -86,15 +86,18 @@ function categoryForProject(project: Project) {
 	return null;
 }
 
+const isVideoCategory = (cat: { slug: string } | null) => cat?.slug === 'video';
+const displayedProjects = projects.filter((p) => !isVideoCategory(categoryForProject(p)));
+
 const collections = Array.from(categoryById.values());
 const collectionsWithProjects = collections.filter((collection) =>
-	projects.some((project) => categoryForProject(project)?.slug === collection.slug)
+	displayedProjects.some((project) => categoryForProject(project)?.slug === collection.slug)
 );
 const normalizedSelectedCollectionSlug = selectedCollectionSlug.trim();
 const visibleProjects =
 	mode === 'projects' && normalizedSelectedCollectionSlug
-		? projects.filter((project) => categoryForProject(project)?.slug === normalizedSelectedCollectionSlug)
-		: projects;
+		? displayedProjects.filter((project) => categoryForProject(project)?.slug === normalizedSelectedCollectionSlug)
+		: displayedProjects;
 
 const collectionBasePath = isEnglish ? '/collection' : '/collezione';
 const projectBasePath = isEnglish ? '/project' : '/progetto';

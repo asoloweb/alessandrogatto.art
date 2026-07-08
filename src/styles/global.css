@@ -359,6 +359,14 @@ a {
   margin: 0;
 }
 
+.footer_rights {
+  max-width: var(--max-width);
+  margin: 12px auto 0;
+  color: #888;
+  font-size: 11px;
+  text-align: center;
+}
+
 .page_header {
   min-height: 62vh;
   display: flex;

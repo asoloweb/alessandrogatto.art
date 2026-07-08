@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PageContent from '../../components/PageContent.astro';
-import PortfolioBlock from '../../components/portfolio_block.astro';
+import VideoBlock from '../../components/video_block.astro';
 import { directusFetch, directusItemsUrl } from '../../lib/directus';
 import { englishSlugFromItalian } from '../../lib/i18n';
 
@@ -56,5 +56,5 @@ const showPortfolioFilters = (page?.slug_en || englishSlugFromItalian(page?.slug
   seoDescription={page?.seo_desc_en || page?.seo_desc}
 >
   <PageContent page={page as any} />
-  {showPortfolioFilters && <PortfolioBlock mode="filterable-projects" useLightbox={true} />}
+  {showPortfolioFilters && <VideoBlock />}
 </BaseLayout>

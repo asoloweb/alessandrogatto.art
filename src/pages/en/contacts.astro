@@ -1,17 +1,17 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PageContent from '../../components/PageContent.astro';
 import { DIRECTUS_URL, directusFetch, directusItemsUrl } from '../../lib/directus';
 
 async function fetchContactsPage() {
 	const url = directusItemsUrl('pages');
-	url.searchParams.set('fields', '*,editor.item.*,editor.item.slider.*,editor.item.slider.slides.item.*,editor.item.card.single_card_id.*,editor.item.card.single_card_id.link.*');
+	url.searchParams.set('fields', 'featured_image,hide_page_header');
 	url.searchParams.set('filter[status][_eq]', 'published');
 	url.searchParams.set('filter[_or][0][slug_en][_eq]', 'contacts');
 	url.searchParams.set('filter[_or][1][slug][_eq]', 'contatti');
+
 	const response = await directusFetch(url);
 	const data = await response.json();
-	return data?.data?.[0] ?? null;
+	return (data?.data?.[0] ?? null) as { featured_image?: string; hide_page_header?: boolean } | null;
 }
 
 const page = await fetchContactsPage();
@@ -23,20 +23,47 @@ function resolveImageSrc(value: string) {
 }
 
 const pageHeaderImage = page?.featured_image ? resolveImageSrc(page.featured_image) : '';
-const showPageHeader = page ? !page.hide_page_header : false;
-const pageTitle = page?.title_en || page?.title || 'Contacts';
-const pageDescription = page?.description_en || page?.description || '';
+const showPageHeader = page ? !page.hide_page_header : true;
 ---
 
-<BaseLayout title={pageTitle} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
+<BaseLayout
+	title="Contact the artist"
+	seoTitle="Contact the artist"
+	seoDescription="Contact the artist Alessandro Gatto"
+>
 	{showPageHeader && (
-		<div class="page_header" style={pageHeaderImage ? `background-image: url('${pageHeaderImage}')` : undefined}>
+		<div
+			class="page_header"
+			style={pageHeaderImage ? `background-image: url('${pageHeaderImage}')` : undefined}
+		>
 			<div class="page_header_inner">
-				{pageTitle && <h1 data-aos="fade-up" data-aos-duration="1500">{pageTitle}</h1>}
-				{pageDescription && <p data-aos="fade-up" data-aos-duration="1800">{pageDescription}</p>}
+				<h1 data-aos="fade-up" data-aos-duration="1500">Contact the artist</h1>
 			</div>
 		</div>
 	)}
 
-	<PageContent page={page as any} showHeader={false} notFoundTitle="Contacts page not found" notFoundMessage="The requested contacts page does not exist." />
+	<section class="contatti_section">
+		<p class="contatti_email">
+			<a href="mailto:gattoale@tiscali.it">gattoale@tiscali.it</a>
+		</p>
+	</section>
 </BaseLayout>
+
+<style>
+	.contatti_section {
+		display: flex;
+		justify-content: center;
+		padding: 60px 24px;
+	}
+	.contatti_email {
+		font-size: 24px;
+		text-align: center;
+	}
+	.contatti_email a {
+		color: #f3f3f3;
+		text-decoration: underline;
+	}
+	.contatti_email a:hover {
+		color: #fff;
+	}
+</style>

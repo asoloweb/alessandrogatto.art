@@ -1,0 +1,365 @@
+---
+import { directusAssetUrl, directusFetch, directusItemsUrl } from '../lib/directus';
+import { getLocaleFromPath, withLocalePath } from '../lib/i18n';
+import { buildProductSlugMap, getProductTitle } from '../lib/products';
+import { slugifyLabel } from '../lib/slug';
+
+interface Category {
+	id?: number;
+	status?: string;
+	sort?: number;
+	titolo_categoria?: string;
+	descrizione_categoria?: string;
+}
+
+interface Work {
+	id?: number;
+	status?: string;
+	titolo?: string;
+	descrizione?: string;
+	foto_principale?: string;
+	video_thumbnail?: string;
+	anno?: number;
+	categoria?: Category | number | null;
+}
+
+const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
+const isEnglish = locale === 'en';
+const componentId = `altro-${Math.random().toString(36).slice(2)}`;
+
+async function fetchCategories(): Promise<Category[]> {
+	const url = directusItemsUrl('portfolio_categorie');
+	url.searchParams.set('fields', 'id,status,sort,titolo_categoria,descrizione_categoria');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('sort', 'sort,titolo_categoria');
+	url.searchParams.set('limit', '-1');
+	const response = await directusFetch(url);
+	if (!response.ok) return [];
+	const payload = await response.json();
+	return Array.isArray(payload?.data) ? (payload.data as Category[]) : [];
+}
+
+async function fetchWorks(): Promise<Work[]> {
+	const url = directusItemsUrl('portfolio_opere');
+	url.searchParams.set('fields', 'id,status,sort,titolo,descrizione,foto_principale,video_thumbnail,anno,categoria.id,categoria.titolo_categoria,categoria.status');
+	url.searchParams.set('filter[status][_eq]', 'published');
+	url.searchParams.set('sort', 'sort,titolo');
+	url.searchParams.set('limit', '-1');
+	const response = await directusFetch(url);
+	if (!response.ok) return [];
+	const payload = await response.json();
+	return Array.isArray(payload?.data) ? (payload.data as Work[]) : [];
+}
+
+const [categories, works] = await Promise.all([fetchCategories(), fetchWorks()]);
+
+const categoryById = new Map<number, { title: string; slug: string }>();
+for (const cat of categories) {
+	if (typeof cat.id !== 'number') continue;
+	categoryById.set(cat.id, {
+		title: cat.titolo_categoria || String(cat.id),
+		slug: slugifyLabel(cat.titolo_categoria) || String(cat.id),
+	});
+}
+
+function categoryForWork(work: Work) {
+	const raw = work.categoria;
+	if (!raw) return null;
+	if (typeof raw === 'number') return categoryById.get(raw) || null;
+	if (typeof raw === 'object' && typeof raw.id === 'number') {
+		const mapped = categoryById.get(raw.id);
+		if (mapped) return mapped;
+		return { title: raw.titolo_categoria || String(raw.id), slug: slugifyLabel(raw.titolo_categoria) || String(raw.id) };
+	}
+	return null;
+}
+
+const isVideoCategory = (cat: { slug: string } | null) => cat?.slug === 'video';
+
+const collections = Array.from(categoryById.values());
+const collectionsWithWorks = collections.filter((c) => c.slug !== 'generica' && works.some((w) => categoryForWork(w)?.slug === c.slug));
+const productSlugMap = buildProductSlugMap(works as any);
+const projectBasePath = isEnglish ? '/project' : '/progetto';
+---
+
+<section class="portfolio_block portfolio_block_projects" data-aos="fade-up" data-aos-duration="1200" id={componentId}>
+	<div class="portfolio_block_inner">
+		<nav class="portfolio_filters" aria-label={isEnglish ? 'Categories' : 'Categorie'}>
+			{collectionsWithWorks.map((c) => (
+				<button class="portfolio_filter" type="button" data-category={c.slug}>{c.title}</button>
+			))}
+		</nav>
+
+		<div class="portfolio_projects_grid js-masonry-grid">
+			<div class="grid-sizer"></div>
+			<div class="gutter-sizer"></div>
+			{works.map((work) => {
+				const title = getProductTitle(work as any) || (isEnglish ? 'Work' : 'Opera');
+				const slug = typeof work.id === 'number' ? productSlugMap.get(work.id) || String(work.id) : '';
+				const cat = categoryForWork(work);
+				const isVideo = isVideoCategory(cat);
+				const image = work.foto_principale;
+				return (
+					<button
+						type="button"
+						class={`portfolio_project_card grid-item${isVideo ? ' is-video' : ''}`}
+						data-category={cat?.slug || 'uncategorized'}
+						data-title={title}
+						data-year={work.anno ? String(work.anno) : ''}
+						data-description={work.descrizione || ''}
+						data-image={image ? directusAssetUrl(image) : ''}
+						data-is-video={isVideo ? 'true' : 'false'}
+						data-detail-url={withLocalePath(`${projectBasePath}/${slug}`, locale)}
+					>
+						{image && (
+							<div class="portfolio_project_media">
+								{isVideo ? (
+									<>
+										<video src={directusAssetUrl(image)} poster={work.video_thumbnail ? directusAssetUrl(work.video_thumbnail) : undefined} preload="metadata" playsinline muted loading="lazy" class="video_block_thumb"></video>
+										<div class="video_block_play" aria-hidden="true">
+											<svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><path d="M8 5v14l11-7z"/></svg>
+										</div>
+									</>
+								) : (
+									<img src={directusAssetUrl(image)} alt={title} loading="lazy" />
+								)}
+							</div>
+						)}
+					</button>
+				);
+			})}
+		</div>
+
+		<div class="video_lightbox" data-open="false" aria-hidden="true">
+			<div class="video_lightbox_backdrop" data-close-lightbox></div>
+			<div class="video_lightbox_panel" role="dialog" aria-modal="true" aria-label={isEnglish ? 'Video player' : 'Video'}>
+				<button type="button" class="video_lightbox_close" aria-label={isEnglish ? 'Close' : 'Chiudi'} data-close-lightbox>×</button>
+				<div class="video_lightbox_player">
+					<video controls autoplay class="video_lightbox_video"></video>
+				</div>
+				<h3 class="video_lightbox_title"></h3>
+			</div>
+		</div>
+
+		<div class="portfolio_lightbox" data-open="false" aria-hidden="true">
+			<div class="portfolio_lightbox_backdrop" data-close-lightbox></div>
+			<div class="portfolio_lightbox_panel" role="dialog" aria-modal="true" aria-label={isEnglish ? 'Project preview' : 'Anteprima progetto'}>
+				<button type="button" class="portfolio_lightbox_close" aria-label={isEnglish ? 'Close' : 'Chiudi'} data-close-lightbox>×</button>
+				<div class="portfolio_lightbox_media"></div>
+				<div class="portfolio_lightbox_content">
+					<h3 class="portfolio_lightbox_title"></h3>
+					<p class="portfolio_lightbox_year"></p>
+					<div class="portfolio_lightbox_description"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<script is:inline define:vars={{ componentId }}>
+	(() => {
+		const root = document.getElementById(componentId);
+		if (!root) return;
+
+		const filters = Array.from(root.querySelectorAll('.portfolio_filter'));
+		const allCards = Array.from(root.querySelectorAll('.portfolio_project_card'));
+
+		const videoLightbox = root.querySelector('.video_lightbox');
+		const imageLightbox = root.querySelector('.portfolio_lightbox');
+		const lbPlayer = videoLightbox?.querySelector('.video_lightbox_video');
+		const lbTitle = videoLightbox?.querySelector('.video_lightbox_title');
+
+		const imgLbMedia = imageLightbox?.querySelector('.portfolio_lightbox_media');
+		const imgLbTitle = imageLightbox?.querySelector('.portfolio_lightbox_title');
+		const imgLbYear = imageLightbox?.querySelector('.portfolio_lightbox_year');
+		const imgLbDescription = imageLightbox?.querySelector('.portfolio_lightbox_description');
+
+		const closeAllLightboxes = () => {
+			if (videoLightbox) {
+				if (lbPlayer) { lbPlayer.pause(); lbPlayer.removeAttribute('src'); lbPlayer.load(); }
+				videoLightbox.setAttribute('data-open', 'false');
+				videoLightbox.setAttribute('aria-hidden', 'true');
+			}
+			if (imageLightbox) {
+				imageLightbox.setAttribute('data-open', 'false');
+				imageLightbox.setAttribute('aria-hidden', 'true');
+			}
+			document.body.style.overflow = '';
+		};
+
+		const openVideo = (card) => {
+			if (!videoLightbox || !lbPlayer || !lbTitle) return;
+			const src = card.getAttribute('data-image') || '';
+			const title = card.getAttribute('data-title') || '';
+			lbPlayer.setAttribute('src', src);
+			lbTitle.textContent = title;
+			videoLightbox.setAttribute('data-open', 'true');
+			videoLightbox.setAttribute('aria-hidden', 'false');
+			document.body.style.overflow = 'hidden';
+			lbPlayer.play().catch(() => {});
+		};
+
+		const openImage = (card) => {
+			if (!imageLightbox || !imgLbMedia || !imgLbTitle || !imgLbYear || !imgLbDescription) return;
+			const title = card.getAttribute('data-title') || '';
+			const year = card.getAttribute('data-year') || '';
+			const description = card.getAttribute('data-description') || '';
+			const image = card.getAttribute('data-image') || '';
+			imgLbTitle.textContent = title;
+			imgLbYear.textContent = year;
+			imgLbYear.style.display = year ? '' : 'none';
+			imgLbDescription.textContent = description;
+			imgLbMedia.innerHTML = image ? `<img src="${image}" alt="${title}">` : '';
+			imageLightbox.setAttribute('data-open', 'true');
+			imageLightbox.setAttribute('aria-hidden', 'false');
+			document.body.style.overflow = 'hidden';
+		};
+
+		if (videoLightbox && videoLightbox.parentElement !== document.body) {
+			document.body.appendChild(videoLightbox);
+		}
+		if (imageLightbox && imageLightbox.parentElement !== document.body) {
+			document.body.appendChild(imageLightbox);
+		}
+
+		allCards.forEach((card) => {
+			card.addEventListener('click', () => {
+				const isVideo = card.getAttribute('data-is-video') === 'true';
+				if (isVideo) {
+					openVideo(card);
+				} else {
+					openImage(card);
+				}
+			});
+		});
+
+		document.querySelectorAll('[data-close-lightbox]').forEach((el) => {
+			el.addEventListener('click', closeAllLightboxes);
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') closeAllLightboxes();
+		});
+
+		const setCategory = (value) => {
+			const showVideosStacked = value === 'video';
+			filters.forEach((f) => f.classList.toggle('is-active', f.getAttribute('data-category') === value));
+
+			allCards.forEach((card) => {
+				const cat = card.getAttribute('data-category') || 'uncategorized';
+				const visible = value === 'all' || cat === value;
+				card.style.display = visible ? '' : 'none';
+				if (showVideosStacked && visible) {
+					card.classList.add('is-stacked');
+				} else {
+					card.classList.remove('is-stacked');
+				}
+			});
+		};
+
+		filters.forEach((filter) => {
+			filter.addEventListener('click', () => {
+				const value = filter.getAttribute('data-category') || 'all';
+				setCategory(value);
+			});
+		});
+
+		setCategory('disegno');
+	})();
+</script>
+
+<style>
+	.portfolio_block { padding: 28px 20px 90px; }
+	.portfolio_block_inner { max-width: var(--max-width); margin: 0 auto; }
+	.portfolio_block_title { margin: 0 0 22px; color: var(--bianco); font-size: clamp(38px, 7vw, 100px); font-weight: 500; letter-spacing: -0.01em; }
+	.portfolio_projects_grid { width: 100%; }
+	.portfolio_block_projects .portfolio_projects_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+	.grid-sizer,
+	.gutter-sizer { width: 4.8%; }
+	.grid-sizer { width: 30.1%; }
+	.portfolio_project_card { background: transparent; color: #f3f3f3; border-radius: 0; overflow: hidden; text-decoration: none; transition: transform .25s ease, opacity .25s ease; border: 0; box-shadow: none; }
+	.portfolio_project_card { display: block; width: 30.1%; margin-bottom: 40px; }
+	.portfolio_block_projects .grid-sizer,
+	.portfolio_block_projects .gutter-sizer { display: none; }
+	.portfolio_block_projects .portfolio_project_card { width: auto; margin: 0; aspect-ratio: 1 / 1; position: relative; z-index: 1; transform-origin: center; transition: transform .35s ease, opacity .25s ease, box-shadow .35s ease; }
+	.portfolio_project_card { padding: 0; cursor: pointer; text-align: left; }
+	.portfolio_project_card:hover { transform: translateY(-2px); opacity: 0.92; }
+	.portfolio_block_projects:has(.portfolio_project_card:hover)::before { content: ''; position: fixed; inset: 0; z-index: 40; pointer-events: none; background: rgba(0,0,0,.5); }
+	.portfolio_project_media { background: transparent; }
+	.portfolio_project_media img { width: 100%; height: auto; display: block; }
+	.portfolio_block_projects .portfolio_project_media { width: 100%; height: 100%; }
+	.is-video .portfolio_project_media { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); }
+	.portfolio_block_projects .portfolio_project_media img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.6); transition: filter .3s ease, opacity .25s ease, transform .35s ease; }
+	.portfolio_block_projects .portfolio_project_card:hover { z-index: 50; opacity: 1; transform: scale(1.2); box-shadow: 0 28px 90px rgba(0,0,0,.55); }
+	.portfolio_block_projects .portfolio_project_card:hover .portfolio_project_media img { filter: brightness(1); opacity: 1; transform: scale(1.02); }
+
+	/* Filters */
+	.portfolio_filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 34px; justify-content: center; }
+	.portfolio_filter { border: 1px solid rgba(255, 255, 255, .5); background: transparent; color: var(--bianco); padding: 15px 25px; border-radius: 999px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; margin-bottom: 0; }
+	.portfolio_filter.is-active { background: var(--primary); border-color: var(--primary); color: var(--nero); }
+
+	/* Video thumb */
+	.video_block_thumb { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); }
+	.video_block_play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 2; pointer-events: none; }
+	.video_block_play svg { width: 52px; height: 52px; color: #fff; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); opacity: .85; transition: opacity .2s ease; }
+	.portfolio_project_card:hover .video_block_play svg { opacity: 1; }
+	.portfolio_block_projects .portfolio_project_card:hover .portfolio_project_media video { filter: brightness(1); opacity: 1; transform: scale(1.02); }
+	.portfolio_block_projects .portfolio_project_media video { width: 100%; height: 100%; object-fit: cover; filter: brightness(.6); transition: filter .3s ease, opacity .25s ease, transform .35s ease; }
+
+	/* Video lightbox */
+	.video_lightbox { position: fixed; inset: 0; z-index: 1000; display: none; padding: 20px; width: 100vw; height: 100vh; align-items: center; justify-content: center; }
+	.video_lightbox[data-open="true"] { display: flex; }
+	.video_lightbox_backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .8); }
+	.video_lightbox_panel { position: relative; z-index: 1; width: min(960px, calc(100vw - 40px)); max-height: calc(100vh - 40px); margin: 0; overflow: auto; background: #111; border: 1px solid #2d2d2d; }
+	.video_lightbox_close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border: 0; background: rgba(0,0,0,.4); color: #fff; font-size: 24px; cursor: pointer; z-index: 2; }
+	.video_lightbox_player { width: 100%; }
+	.video_lightbox_video { width: 100%; display: block; max-height: 80vh; }
+	.video_lightbox_title { margin: 0; padding: 18px 22px 22px; font-size: clamp(16px, 1.4vw, 22px); color: var(--bianco); }
+
+	/* Image lightbox */
+	.portfolio_lightbox { position: fixed; inset: 0; z-index: 1000; display: none; padding: 20px; width: 100vw; height: 100vh; align-items: center; justify-content: center; }
+	.portfolio_lightbox[data-open="true"] { display: flex; }
+	.portfolio_lightbox_backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .72); }
+	.portfolio_lightbox_panel { position: relative; z-index: 1; width: min(1040px, calc(100vw - 40px)); max-height: calc(100vh - 40px); margin: 0; overflow: auto; background: #111; border: 1px solid #2d2d2d; }
+	.portfolio_lightbox_close { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border: 0; background: rgba(0,0,0,.4); color: #fff; font-size: 24px; cursor: pointer; }
+	.portfolio_lightbox_media img { width: 100%; height: auto; display: block; }
+	.portfolio_lightbox_content { padding: 22px 24px 28px; }
+	.portfolio_lightbox_title { margin: 0; font-size: clamp(16px, 1.4vw, 22px); line-height: 1.2; }
+	.portfolio_lightbox_year { margin: 10px 0 0; color: var(--theme--primary); font-weight: 700; }
+	.portfolio_lightbox_description { margin-top: 12px; color: #c8c8c8; line-height: 1.55; white-space: pre-wrap; }
+
+	/* Stacked video layout */
+	.portfolio_project_card.is-stacked { width: 100% !important; margin: 0 0 20px !important; aspect-ratio: auto !important; display: block !important; }
+	.portfolio_project_card.is-stacked .portfolio_project_media { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+	.portfolio_project_card.is-stacked .portfolio_project_media video,
+	.portfolio_project_card.is-stacked .portfolio_project_media img { object-fit: contain; background: #000; }
+	.portfolio_project_card.is-stacked .portfolio_project_media { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); }
+	.portfolio_project_card.is-stacked:hover { transform: none !important; z-index: auto !important; box-shadow: none !important; }
+	.portfolio_project_card.is-stacked:hover .portfolio_project_media video,
+	.portfolio_project_card.is-stacked:hover .portfolio_project_media img { filter: brightness(1) !important; transform: none !important; }
+
+	@media (max-width: 980px) {
+		.grid-sizer,
+		.portfolio_project_card { width: 47%; }
+		.portfolio_block_projects .portfolio_projects_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.gutter-sizer { width: 6%; }
+		.portfolio_project_card { margin-bottom: 30px; }
+	}
+	@media (max-width: 768px) {
+		.portfolio_project_card.is-stacked .portfolio_project_media { aspect-ratio: 4 / 3; }
+	}
+	@media (max-width: 640px) {
+		.portfolio_block_projects .portfolio_projects_grid { grid-template-columns: 1fr; }
+		.grid-sizer,
+		.portfolio_project_card { width: 100%; }
+		.gutter-sizer { width: 0; }
+		.portfolio_project_card { margin-bottom: 22px; }
+		.portfolio_block_projects:has(.portfolio_project_card:hover)::before { display: none; }
+		.portfolio_block_projects .portfolio_project_card:hover { transform: none; box-shadow: none; }
+		.portfolio_project_card.is-stacked { margin: 0 0 12px !important; }
+		.video_lightbox { padding: 12px; }
+		.video_lightbox_panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+		.portfolio_lightbox { padding: 12px; }
+		.portfolio_lightbox_panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+	}
+</style>
