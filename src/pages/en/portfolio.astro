@@ -9,5 +9,5 @@ const page = await fetchPublishedPageBySlug('portfolio', 'portfolio');
 
 <BaseLayout title={page?.title_en || page?.title || 'Portfolio'} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
 	<PageContent page={page as any} notFoundTitle="Portfolio" notFoundMessage="" />
-	<PortfolioBlock titolo="Portfolio" mode="filterable-projects" useLightbox={true} />
+	<PortfolioBlock titolo="Portfolio" mode="projects" useLightbox={true} />
 </BaseLayout>

@@ -45,8 +45,8 @@ const fallbackMenuItems: MenuItem[] = [
 	{ label: 'CHI SONO', label_en: 'ABOUT', custom_href: '/chi-sono-filosofia', custom_href_en: '/about-philosophy' },
 	{ label: 'PORTFOLIO', label_en: 'PORTFOLIO', custom_href: '/portfolio', custom_href_en: '/portfolio' },
 	{ label: 'PALMARES', label_en: 'PALMARES', custom_href: '/palmares', custom_href_en: '/palmares' },
+	{ label: 'ALTRO', label_en: 'OTHER', custom_href: '/altro', custom_href_en: '/other' },
 	{ label: 'RICONOSCIMENTI', label_en: 'AWARDS', custom_href: '/riconoscimenti', custom_href_en: '/awards' },
-	{ label: 'EVENTI', label_en: 'EVENTS', custom_href: '/eventi', custom_href_en: '/events' },
 	{ label: 'COLLEZIONE', label_en: 'COLLECTION', custom_href: '/collezione', custom_href_en: '/collection' },
 	{ label: 'CONTATTI', label_en: 'CONTACTS', custom_href: '/contatti', custom_href_en: '/contacts' },
 ];
@@ -59,12 +59,29 @@ function isPortfolioItem(item: MenuItem) {
 	return item.custom_href === '/portfolio' || item.custom_href_en === '/portfolio' || item.label?.toLowerCase() === 'portfolio';
 }
 
+function isAltroItem(item: MenuItem) {
+	const label = item.label?.toLowerCase();
+	const labelEn = item.label_en?.toLowerCase();
+	return item.custom_href === '/altro' || item.custom_href_en === '/other' || label === 'altro' || labelEn === 'other';
+}
+
+function isEventsItem(item: MenuItem) {
+	const label = item.label?.toLowerCase();
+	const labelEn = item.label_en?.toLowerCase();
+	return item.custom_href === '/eventi' || item.custom_href_en === '/events' || label === 'eventi' || labelEn === 'events';
+}
+
 function normalizeMenuOrder(items: MenuItem[]) {
-	const nextItems = items.filter((item) => !isPalmaresItem(item));
+	const nextItems = items.filter((item) => !isPalmaresItem(item) && !isAltroItem(item) && !isEventsItem(item));
 	const palmaresItem = items.find(isPalmaresItem) || fallbackMenuItems.find(isPalmaresItem);
+	const altroItem = items.find(isAltroItem) || fallbackMenuItems.find(isAltroItem);
 	const portfolioIndex = nextItems.findIndex(isPortfolioItem);
 	if (palmaresItem && portfolioIndex >= 0) {
 		nextItems.splice(portfolioIndex + 1, 0, palmaresItem);
+	}
+	const palmaresIndex = nextItems.findIndex(isPalmaresItem);
+	if (altroItem && palmaresIndex >= 0) {
+		nextItems.splice(palmaresIndex + 1, 0, altroItem);
 	}
 	return nextItems;
 }

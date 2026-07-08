@@ -53,16 +53,10 @@ const fallbackFooterMenus: Record<string, MenuItem[]> = {
 	],
 	'footer-servizi': [
 		{ label: 'Portfolio', label_en: 'Portfolio', custom_href: '/portfolio', custom_href_en: '/portfolio' },
+		{ label: 'Altro', label_en: 'Other', custom_href: '/altro', custom_href_en: '/other' },
 		{ label: 'Collezione', label_en: 'Collection', custom_href: '/collezione', custom_href_en: '/collection' },
 	],
-	'footer-info': [
-		{
-			label: 'Eventi',
-			label_en: 'Events',
-			custom_href: '/eventi',
-			custom_href_en: '/events',
-		},
-	],
+	'footer-info': [],
 	'footer-contatti': [
 		{ label: 'Contatti', label_en: 'Contacts', custom_href: '/contatti', custom_href_en: '/contacts' },
 	],
@@ -121,7 +115,11 @@ try {
 			})
 			.filter((item): item is MenuItem => Boolean(item));
 
-		footerMenu.items = itemObjects.length ? itemObjects : fallbackFooterMenus[footerMenu.slug] || [];
+		footerMenu.items = (itemObjects.length ? itemObjects : fallbackFooterMenus[footerMenu.slug] || []).filter((item) => {
+			const label = item.label?.toLowerCase();
+			const labelEn = item.label_en?.toLowerCase();
+			return item.custom_href !== '/eventi' && item.custom_href_en !== '/events' && label !== 'eventi' && labelEn !== 'events';
+		});
 	}
 } catch (error) {
 	for (const footerMenu of footerMenus) {

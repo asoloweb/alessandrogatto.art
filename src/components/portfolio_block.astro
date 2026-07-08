@@ -102,7 +102,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 
 <section class="portfolio_block" data-aos="fade-up" data-aos-duration="1200" id={componentId}>
 	<div class="portfolio_block_inner">
-		{titolo && mode !== 'filterable-projects' && <h2 class="portfolio_block_title">{titolo}</h2>}
+		{titolo && <h2 class="portfolio_block_title">{titolo}</h2>}
 
 		{mode === 'collections' ? (
 			<div class="portfolio_collections_grid">
@@ -172,7 +172,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 	</div>
 </section>
 
-{mode === 'filterable-projects' && (
+{mode !== 'collections' && (
 	<script is:inline define:vars={{ componentId, useLightbox }}>
 		(() => {
 			const root = document.getElementById(componentId);
@@ -309,7 +309,9 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 				});
 			});
 
-			initIsotope().then(() => setCategory('all'));
+			initIsotope().then(() => {
+				if (filters.length) setCategory('all');
+			});
 		})();
 	</script>
 )}

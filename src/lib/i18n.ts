@@ -4,6 +4,7 @@ const EN_SLUG_MAP: Record<string, string> = {
   'chi-sono-filosofia': 'about-philosophy',
   riconoscimenti: 'awards',
   portfolio: 'portfolio',
+  altro: 'other',
   eventi: 'events',
   contatti: 'contacts',
   collezione: 'collection',
