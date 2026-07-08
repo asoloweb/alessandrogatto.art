@@ -9,7 +9,7 @@ interface Props {
 	href?: string;
 	label?: string;
 	immagine?: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null;
-	slides?: { immagine?: string | { id?: string | null } | null; titolo?: string }[];
+	slides?: { immagine?: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null; titolo?: string }[];
 	inverti?: boolean;
 	background_color?: string;
 }
@@ -28,7 +28,7 @@ const {
 } = Astro.props;
 
 const singleSlideImage = Array.isArray(slides) ? slides.find((slide) => slide?.immagine)?.immagine : undefined;
-const resolvedImage = immagine || singleSlideImage;
+const resolvedImage = singleSlideImage || immagine;
 
 function resolveImageId(value: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null | undefined) {
 	if (!value) return undefined;
