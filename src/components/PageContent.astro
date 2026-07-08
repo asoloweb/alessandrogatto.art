@@ -17,7 +17,7 @@ type HeroBlockItem = {
 	label?: string;
 	label_en?: string;
 	href?: string;
-	immagine?: string;
+	immagine?: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null;
 	immagini?: { directus_files_id?: string | { id?: string | null } | null }[];
 	inverti?: boolean;
 	background_color?: string;

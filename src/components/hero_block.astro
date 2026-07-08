@@ -8,7 +8,7 @@ interface Props {
 	paragrafo?: string;
 	href?: string;
 	label?: string;
-	immagine?: string;
+	immagine?: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null;
 	slides?: { immagine?: string | { id?: string | null } | null; titolo?: string }[];
 	inverti?: boolean;
 	background_color?: string;
@@ -21,7 +21,7 @@ const {
 	paragrafo = '', 
 	href = '', 
 	label = '', 
-	immagine = '',
+	immagine = null,
 	slides = [],
 	inverti = false,
 	background_color = ''
@@ -30,14 +30,15 @@ const {
 const singleSlideImage = Array.isArray(slides) ? slides.find((slide) => slide?.immagine)?.immagine : undefined;
 const resolvedImage = immagine || singleSlideImage;
 
-function resolveImageId(value: string | { id?: string | null } | null | undefined) {
+function resolveImageId(value: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null | undefined) {
 	if (!value) return undefined;
 	if (typeof value === 'string') return value;
+	if (typeof value === 'object' && value.directus_files_id) return resolveImageId(value.directus_files_id);
 	if (typeof value === 'object' && typeof value.id === 'string') return value.id;
 	return undefined;
 }
 
-function resolveImageSrc(value: string | { id?: string | null } | null | undefined) {
+function resolveImageSrc(value: string | { id?: string | null; directus_files_id?: string | { id?: string | null } | null } | null | undefined) {
 	return directusAssetUrl(resolveImageId(value));
 }
 ---
@@ -155,7 +156,7 @@ function resolveImageSrc(value: string | { id?: string | null } | null | undefin
 	}
 	
 	.hero_image[data-aos="image-rotate"] {
-		opacity: 0;
+		opacity: 1;
 		transform: none;
 		transition: opacity 0.8s ease-out, transform 0.35s ease;
 	}
