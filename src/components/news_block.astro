@@ -70,13 +70,7 @@ const hasMultipleSlides = newsItems.length > 1;
 const isGridLayout = layout === 'grid';
 
 function resolveImageSrc(value: string | undefined) {
-	return directusAssetUrl(value, {
-		width: 900,
-		height: 675,
-		quality: 72,
-		format: 'webp',
-		fit: 'cover',
-	});
+	return directusAssetUrl(value);
 }
 
 function formatNewsDate(value: string | undefined) {
@@ -241,8 +235,8 @@ const newsSlugMap = buildNewsSlugMap(newsItems);
 
 	.news_card_media img {
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
+		height: auto;
+		object-fit: contain;
 	}
 
 	.news_card_title {

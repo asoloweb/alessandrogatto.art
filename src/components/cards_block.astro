@@ -31,12 +31,7 @@ const { titolo = '', card = [] } = Astro.props;
 const locale = getLocaleFromPath(Astro.url?.pathname ?? '/');
 
 function resolveImageSrc(value: string | undefined) {
-	return directusAssetUrl(value, {
-		width: 760,
-		quality: 72,
-		format: 'webp',
-		fit: 'inside',
-	});
+	return directusAssetUrl(value);
 }
 
 function normalizeCards(input: CardRelation[] | SingleCard[]) {

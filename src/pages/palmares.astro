@@ -14,7 +14,7 @@ const pageDescription =
 	'Premi, menzioni e riconoscimenti in concorsi nazionali e internazionali.';
 const showPageHeader = page && !(page as any).hide_page_header;
 const pageHeaderImage = page?.featured_image
-	? directusAssetUrl(page.featured_image, { width: 1920, quality: 80, format: 'webp' })
+	? directusAssetUrl(page.featured_image)
 	: '';
 ---
 

@@ -50,7 +50,7 @@ const description = opera?.descrizione || '';
 const category = categoryFromOpera(opera);
 const categorySlug = slugifyLabel(category?.titolo_categoria) || (category?.id ? String(category.id) : '');
 const backHref = categorySlug ? `/collezione/${categorySlug}` : '/portfolio';
-const imageSrc = directusAssetUrl(opera?.foto_principale, { width: 1600, height: 1200, fit: 'cover', format: 'webp', quality: 78 });
+const imageSrc = directusAssetUrl(opera?.foto_principale);
 
 let relatedWorks: Opera[] = [];
 if (typeof category?.id === 'number' && typeof opera?.id === 'number') {
@@ -100,7 +100,7 @@ const relatedSlugMap = buildProductSlugMap(allForSlug as any);
 							return (
 								<a class="project_related_card" href={`/progetto/${workSlug}`}>
 									{work.foto_principale && (
-										<img src={directusAssetUrl(work.foto_principale, { width: 800, height: 600, fit: 'cover', format: 'webp', quality: 74 })} alt={workTitle} loading="lazy" />
+										<img src={directusAssetUrl(work.foto_principale)} alt={workTitle} loading="lazy" />
 									)}
 									<div>
 										<h3>{workTitle}</h3>
@@ -123,14 +123,14 @@ const relatedSlugMap = buildProductSlugMap(allForSlug as any);
 	.project_header h1 { margin: 0; font-size: clamp(38px, 6vw, 78px); line-height: 1; color: var(--bianco); }
 	.project_meta { margin: 0 0 8px; color: var(--primary); text-transform: uppercase; letter-spacing: .8px; font-size: 13px; font-weight: 700; }
 	.project_year { margin: 10px 0 0; color: rgba(255, 255, 255, .82); font-weight: 700; }
-  .project_media { margin-top: 24px; border-radius: 18px; overflow: hidden; max-height: calc(100vh - 200px); }
-  .project_media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.project_media { margin-top: 24px; border-radius: 18px; overflow: hidden; }
+	.project_media img { width: 100%; height: auto; display: block; }
 	.project_description { margin-top: 24px; background: var(--bianco); color: var(--nero); border-radius: 18px; padding: 22px; line-height: 1.6; }
 	.project_related { margin-top: 30px; }
 	.project_related h2 { margin: 0 0 14px; color: var(--bianco); font-size: clamp(24px, 3vw, 34px); }
 	.project_related_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 	.project_related_card { background: var(--bianco); color: var(--nero); text-decoration: none; border-radius: 14px; overflow: hidden; }
-	.project_related_card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+	.project_related_card img { width: 100%; height: auto; display: block; }
 	.project_related_card div { padding: 12px; }
 	.project_related_card h3 { margin: 0; font-size: 18px; line-height: 1.2; }
 	.project_related_card p { margin: 6px 0 0; font-weight: 700; }

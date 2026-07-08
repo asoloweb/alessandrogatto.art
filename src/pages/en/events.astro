@@ -14,7 +14,7 @@ const isEnglish = locale === 'en';
 const pageTitle = localizedField(page as any, 'title', locale);
 const pageDescription = localizedField(page as any, 'description', locale);
 const showPageHeader = page && !(page as any).hide_page_header;
-const pageHeaderImage = page?.featured_image ? directusAssetUrl(page.featured_image, { width: 1920, quality: 80, format: 'webp' }) : '';
+const pageHeaderImage = page?.featured_image ? directusAssetUrl(page.featured_image) : '';
 ---
 
 <BaseLayout title={pageTitle || 'Events'} seoTitle={page?.seo_title_en || page?.seo_title} seoDescription={page?.seo_desc_en || page?.seo_desc}>
@@ -100,8 +100,8 @@ const pageHeaderImage = page?.featured_image ? directusAssetUrl(page.featured_im
 
 	.evento_media img {
 		width: 100%;
-		height: 100%;
-		object-fit: cover;
+		height: auto;
+		object-fit: contain;
 	}
 
 	.evento_content {

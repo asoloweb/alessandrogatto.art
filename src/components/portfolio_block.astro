@@ -140,12 +140,12 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 								data-title={title}
 								data-year={project.anno ? String(project.anno) : ''}
 								data-description={project.descrizione || ''}
-								data-image={image ? directusAssetUrl(image, { width: 1600, quality: 82, format: 'webp' }) : ''}
+								data-image={image ? directusAssetUrl(image) : ''}
 								data-detail-url={withLocalePath(`${projectBasePath}/${slug}`, locale)}
 							>
 								{image && (
 									<div class="portfolio_project_media">
-										<img src={directusAssetUrl(image, { width: 900, format: 'webp', quality: 74 })} alt={title} loading="lazy" />
+										<img src={directusAssetUrl(image)} alt={title} loading="lazy" />
 									</div>
 								)}
 							</button>

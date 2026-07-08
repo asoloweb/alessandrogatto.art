@@ -50,13 +50,7 @@ function resolveImageId(value: SlideItem['immagine']) {
 }
 
 function resolveImageSrc(value: SlideItem['immagine']) {
-	return directusAssetUrl(resolveImageId(value), {
-		width: 1920,
-		height: 1080,
-		quality: 72,
-		format: 'webp',
-		fit: 'cover',
-	});
+	return directusAssetUrl(resolveImageId(value));
 }
 
 function resolveVideoId(value: SlideItem['video_sfondo']) {
@@ -78,7 +72,7 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 			const videoSrc = resolveVideoSrc(slide.video_sfondo);
 			const hasVideo = Boolean(videoSrc);
 			return (
-				<div class="swiper-slide single_slide" style={!hasVideo && imageSrc ? `background-image: url('${imageSrc}')` : undefined}>
+				<div class="swiper-slide single_slide">
 					{videoSrc && (
 						<video
 							class="single_slide_video"
@@ -137,7 +131,7 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 		.slider_block .single_slide {
 		min-height: 220px;
 		padding: 24px;
-		background-size: cover;
+		background-size: contain;
 		background-position: center;
 		color: var(--bianco);
 		position: relative;
@@ -173,7 +167,7 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 			inset: 0;
 			width: 100%;
 			height: 100%;
-			object-fit: cover;
+			object-fit: contain;
 			z-index: 0;
 		}
 
@@ -205,7 +199,7 @@ function resolveVideoSrc(value: SlideItem['video_sfondo']) {
 	.single_slide {
 		padding: 0;
 		text-align: left;
-		background-size: cover;
+		background-size: contain;
 		background-position: center;
 		min-height: 340px;
 		display: flex;
