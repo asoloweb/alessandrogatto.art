@@ -60,6 +60,7 @@ async function fetchProjects(): Promise<Project[]> {
 
 const [categories, projects] = await Promise.all([fetchCategories(), fetchProjects()]);
 const productSlugMap = buildProductSlugMap(projects as any);
+const enableMasonry = mode === 'filterable-projects';
 
 const categoryById = new Map<number, { title: string; slug: string; description: string }>();
 for (const category of categories) {
@@ -100,7 +101,7 @@ const projectBasePath = isEnglish ? '/project' : '/progetto';
 const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 ---
 
-<section class="portfolio_block" data-aos="fade-up" data-aos-duration="1200" id={componentId}>
+<section class={`portfolio_block portfolio_block_${mode}`} data-aos="fade-up" data-aos-duration="1200" id={componentId}>
 	<div class="portfolio_block_inner">
 		{titolo && <h2 class="portfolio_block_title">{titolo}</h2>}
 
@@ -148,6 +149,11 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 										<img src={directusAssetUrl(image)} alt={title} loading="lazy" />
 									</div>
 								)}
+								{image && mode === 'projects' && (
+									<div class="portfolio_hover_preview" aria-hidden="true">
+										<img src={directusAssetUrl(image)} alt="" loading="lazy" />
+									</div>
+								)}
 							</button>
 						);
 					})}
@@ -173,7 +179,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 </section>
 
 {mode !== 'collections' && (
-	<script is:inline define:vars={{ componentId, useLightbox }}>
+	<script is:inline define:vars={{ componentId, useLightbox, enableMasonry }}>
 		(() => {
 			const root = document.getElementById(componentId);
 			if (!root) return;
@@ -202,6 +208,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 				});
 
 			const initIsotope = async () => {
+				if (!enableMasonry) return;
 				if (!grid) return;
 				try {
 					await loadScript('https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.min.js');
@@ -322,17 +329,28 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 	.portfolio_block_title { margin: 0 0 22px; color: var(--bianco); font-size: clamp(38px, 7vw, 100px); font-weight: 500; letter-spacing: -0.01em; }
 	.portfolio_collections_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 	.portfolio_projects_grid { width: 100%; }
+	.portfolio_block_projects .portfolio_projects_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid rgba(255,255,255,.22); border-left: 1px solid rgba(255,255,255,.22); }
 	.grid-sizer,
 	.gutter-sizer { width: 4.8%; }
 	.grid-sizer { width: 30.1%; }
 	.portfolio_collection_card,
 	.portfolio_project_card { background: transparent; color: #f3f3f3; border-radius: 0; overflow: hidden; text-decoration: none; transition: transform .25s ease, opacity .25s ease; border: 0; box-shadow: none; }
 	.portfolio_project_card { display: block; width: 30.1%; margin-bottom: 40px; }
+	.portfolio_block_projects .grid-sizer,
+	.portfolio_block_projects .gutter-sizer { display: none; }
+	.portfolio_block_projects .portfolio_project_card { width: auto; margin: 0; aspect-ratio: 1.18 / 1; border-right: 1px solid rgba(255,255,255,.22); border-bottom: 1px solid rgba(255,255,255,.22); position: relative; }
 	.portfolio_project_card { padding: 0; cursor: pointer; text-align: left; }
 	a.portfolio_collection_card:hover,
 	.portfolio_project_card:hover { transform: translateY(-2px); opacity: 0.92; }
 	.portfolio_project_media { background: transparent; }
 	.portfolio_project_media img { width: 100%; height: auto; display: block; }
+	.portfolio_block_projects .portfolio_project_media { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: clamp(12px, 2vw, 28px); }
+	.portfolio_block_projects .portfolio_project_media img { max-width: 100%; max-height: 100%; width: auto; height: auto; transition: opacity .25s ease, transform .35s ease; }
+	.portfolio_hover_preview { position: fixed; inset: 50% auto auto 50%; z-index: 900; width: min(58vw, 680px); height: min(62vh, 560px); padding: clamp(16px, 2.5vw, 34px); display: flex; align-items: center; justify-content: center; pointer-events: none; border: 2px dashed rgba(255,255,255,.72); background: rgba(9,9,9,.9); box-shadow: 0 28px 90px rgba(0,0,0,.45); opacity: 0; transform: translate(-50%, -48%) scale(.96); transition: opacity .22s ease, transform .32s ease; }
+	.portfolio_hover_preview img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
+	.portfolio_block_projects .portfolio_project_card:hover { z-index: 5; }
+	.portfolio_block_projects .portfolio_project_card:hover .portfolio_project_media img { opacity: .35; transform: scale(.96); }
+	.portfolio_block_projects .portfolio_project_card:hover .portfolio_hover_preview { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 	.portfolio_collection_card h3,
 	.portfolio_project_content h3 { margin: 16px 16px 8px; font-size: clamp(22px, 2.4vw, 36px); line-height: 1.08; font-weight: 500; }
 	.portfolio_collection_card p,
@@ -355,17 +373,21 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 	@media (max-width: 980px) {
 		.grid-sizer,
 		.portfolio_project_card { width: 47%; }
+		.portfolio_block_projects .portfolio_projects_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.portfolio_hover_preview { width: min(78vw, 620px); height: min(58vh, 520px); }
 		.gutter-sizer { width: 6%; }
 		.portfolio_project_card { margin-bottom: 30px; }
 		.portfolio_collections_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	}
 	@media (max-width: 640px) {
 		.portfolio_collections_grid { grid-template-columns: 1fr; }
+		.portfolio_block_projects .portfolio_projects_grid { grid-template-columns: 1fr; }
 		.grid-sizer,
 		.portfolio_project_card { width: 100%; }
 		.gutter-sizer { width: 0; }
 		.portfolio_project_card { margin-bottom: 22px; }
 		.portfolio_lightbox { padding: 12px; }
 		.portfolio_lightbox_panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+		.portfolio_hover_preview { display: none; }
 	}
 </style>
