@@ -60,7 +60,7 @@ async function fetchProjects(): Promise<Project[]> {
 
 const [categories, projects] = await Promise.all([fetchCategories(), fetchProjects()]);
 const productSlugMap = buildProductSlugMap(projects as any);
-const enableMasonry = mode === 'filterable-projects';
+const showFilters = mode === 'filterable-projects';
 
 const categoryById = new Map<number, { title: string; slug: string; description: string }>();
 for (const category of categories) {
@@ -101,7 +101,7 @@ const projectBasePath = isEnglish ? '/project' : '/progetto';
 const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 ---
 
-<section class={`portfolio_block portfolio_block_${mode}`} data-aos="fade-up" data-aos-duration="1200" id={componentId}>
+<section class={`portfolio_block ${mode !== 'collections' ? 'portfolio_block_projects' : 'portfolio_block_collections'}`} data-aos="fade-up" data-aos-duration="1200" id={componentId}>
 	<div class="portfolio_block_inner">
 		{titolo && <h2 class="portfolio_block_title">{titolo}</h2>}
 
@@ -116,7 +116,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 			</div>
 		) : (
 			<>
-				{mode === 'filterable-projects' && (
+				{showFilters && (
 					<nav class="portfolio_filters" aria-label={isEnglish ? 'Portfolio categories' : 'Categorie portfolio'}>
 						<button class="portfolio_filter is-active" type="button" data-category="all">{allLabel}</button>
 						{collectionsWithProjects.map((collection) => (
@@ -174,7 +174,7 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 </section>
 
 {mode !== 'collections' && (
-	<script is:inline define:vars={{ componentId, useLightbox, enableMasonry }}>
+	<script is:inline define:vars={{ componentId, useLightbox }}>
 		(() => {
 			const root = document.getElementById(componentId);
 			if (!root) return;
@@ -203,7 +203,6 @@ const allLabel = isEnglish ? 'All works' : 'Tutte le opere';
 				});
 
 			const initIsotope = async () => {
-				if (!enableMasonry) return;
 				if (!grid) return;
 				try {
 					await loadScript('https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.min.js');
