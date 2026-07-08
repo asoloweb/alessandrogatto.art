@@ -29,6 +29,12 @@ async function fetchHomePage() {
 }
 
 const page: Page | null = await fetchHomePage();
+const sliderOnlyPage = page
+  ? {
+      ...page,
+      editor: (page.editor || []).filter((block: any) => block?.collection === 'slider_block' || block?.item?.slider),
+    }
+  : null;
 ---
 
 <BaseLayout
@@ -37,7 +43,7 @@ const page: Page | null = await fetchHomePage();
   seoDescription={page?.seo_desc_en || page?.seo_desc}
 >
   <PageContent
-    page={page as any}
+    page={sliderOnlyPage as any}
     notFoundTitle="Home not found"
     notFoundMessage="The requested page does not exist."
   />
